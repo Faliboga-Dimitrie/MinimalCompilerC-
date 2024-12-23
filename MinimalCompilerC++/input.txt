@@ -1,1 +1,9 @@
-teste 23 4.6 = 27.8 += "ana are mere" -= 3.2
+int test(int a, int b) {
+	return a + b;
+}
+int main() {
+	int a = 5;
+	int b = 6;
+	int c = test(a, b);
+	return 0;
+}
