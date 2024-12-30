@@ -2,7 +2,12 @@ grammar MiniLanguage;
 
 //parser rules
 
-program: function_declaration* main_declaration EOF;
+program: (
+		declaration
+		| declaration_and_assignment
+		| function_declaration
+		| COMMENT
+	)* main_declaration COMMENT* EOF;
 
 main_declaration:
 	VOID_TYPE
@@ -79,8 +84,8 @@ primary_expression:
 declaration_and_assignment_no_semicolon:
 	type VARIABLE_NAME EQUALS value;
 declaration_and_assignment:
-	type VARIABLE_NAME EQUALS value SEMICOLON;
-declaration: type VARIABLE_NAME SEMICOLON;
+	type VARIABLE_NAME EQUALS value SEMICOLON COMMENT?;
+declaration: type VARIABLE_NAME SEMICOLON COMMENT?;
 type: INTEGER_TYPE | FLOAT_TYPE | STRING_TYPE;
 
 value: numeral_value | VARIABLE_NAME;
