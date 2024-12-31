@@ -56,6 +56,12 @@ public interface IMiniLanguageVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitParameters([NotNull] MiniLanguageParser.ParametersContext context);
 	/// <summary>
+	/// Visit a parse tree produced by <see cref="MiniLanguageParser.new_line_block"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitNew_line_block([NotNull] MiniLanguageParser.New_line_blockContext context);
+	/// <summary>
 	/// Visit a parse tree produced by <see cref="MiniLanguageParser.block"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>

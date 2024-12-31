@@ -11,12 +11,19 @@ program: (
 
 main_declaration:
 	VOID_TYPE
-	| INTEGER_TYPE MAIN_FUNCTION LPARAN RPARAN block;
+	| INTEGER_TYPE MAIN_FUNCTION LPARAN RPARAN (
+		COMMENT? new_line_block
+		| block
+	);
 
 function_declaration:
-	type VARIABLE_NAME LPARAN parameters? RPARAN block;
+	type VARIABLE_NAME LPARAN parameters? (
+		COMMENT? new_line_block
+		| block
+	);
 parameters: type VARIABLE_NAME (COMMA type VARIABLE_NAME)*;
-block: LBRACE statement* RBRACE;
+new_line_block: NEW_LINE block;
+block: LBRACE (COMMENT | statement)* RBRACE;
 
 statement:
 	assignment
@@ -30,9 +37,20 @@ statement:
 	| return_statement;
 
 if_statement:
-	IF LPARAN logical_expression RPARAN block (ELSE block)?;
-while_statement: WHILE LPARAN expression RPARAN block;
-for_statement: FOR LPARAN for_clause RPARAN block;
+	IF LPARAN logical_expression RPARAN (
+		COMMENT? new_line_block
+		| block
+	) (ELSE (COMMENT? new_line_block | block))?;
+while_statement:
+	WHILE LPARAN expression RPARAN (
+		COMMENT? new_line_block
+		| block
+	);
+for_statement:
+	FOR LPARAN for_clause RPARAN (
+		COMMENT? new_line_block
+		| block
+	);
 for_clause: (
 		assignment_no_semicolon
 		| declaration_and_assignment_no_semicolon
@@ -43,7 +61,7 @@ for_clause: (
 			| post_inccrement_or_decrement_no_semicolon
 		)
 	)? SEMICOLON;
-return_statement: RETURN expression SEMICOLON;
+return_statement: RETURN expression SEMICOLON COMMENT?;
 
 function_call: VARIABLE_NAME LPARAN arguments? RPARAN SEMICOLON;
 arguments: expression (COMMA expression)*;
@@ -92,7 +110,7 @@ value: numeral_value | VARIABLE_NAME;
 numeral_value: INTEGER_VALUE | FLOAT_VALUE;
 
 assignment_no_semicolon: VARIABLE_NAME EQUALS value;
-assignment: VARIABLE_NAME EQUALS value SEMICOLON;
+assignment: VARIABLE_NAME EQUALS value SEMICOLON COMMENT?;
 assignment_op_no_semicolon:
 	VARIABLE_NAME (
 		ADD_EQUALS
@@ -122,6 +140,7 @@ fragment NON_ZERO_DIGIT: [1-9];
 fragment LETTER: [a-zA-Z];
 
 MAIN_FUNCTION: 'main';
+NEW_LINE: '\n';
 
 INTEGER_TYPE: 'int';
 FLOAT_TYPE: 'float';
