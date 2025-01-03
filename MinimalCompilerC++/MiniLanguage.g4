@@ -68,7 +68,7 @@ return_statement: RETURN expression SEMICOLON COMMENT?;
 function_call_no_semicolon:
 	VARIABLE_NAME LPARAN arguments? RPARAN;
 function_call: VARIABLE_NAME LPARAN arguments? RPARAN SEMICOLON;
-arguments: expression (COMMA expression)*;
+arguments: VARIABLE_NAME (COMMA VARIABLE_NAME)*;
 
 expression: logical_expression;
 
@@ -116,8 +116,8 @@ value:
 	| VARIABLE_NAME
 	| function_call_no_semicolon
 	| STRING_VALUE
-	| LPARAN expression RPARAN;
-numeral_value: INTEGER_VALUE | FLOAT_VALUE | DOUBLE_TYPE;
+	| expression;
+numeral_value: INTEGER_VALUE | FLOAT_VALUE | DOUBLE_VALUE;
 
 assignment_no_semicolon: VARIABLE_NAME EQUALS value;
 assignment: VARIABLE_NAME EQUALS value SEMICOLON COMMENT?;
@@ -197,6 +197,7 @@ COMMA: ',';
 
 INTEGER_VALUE: DIGIT | NON_ZERO_DIGIT DIGIT*;
 FLOAT_VALUE: INTEGER_VALUE '.' DIGIT* ('f')?;
+DOUBLE_VALUE: INTEGER_VALUE '.' DIGIT* ('d')?;
 STRING_VALUE: '"' .+? '"';
 VARIABLE_NAME: LETTER (LETTER | DIGIT)*;
 

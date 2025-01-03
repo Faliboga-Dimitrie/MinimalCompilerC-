@@ -31,238 +31,92 @@ namespace MinimalCompiler
             public dynamic? Value { get; set; }
 
             public string Name { get; set; } = string.Empty;
+
+            public string FromFunction { get; set; } = "";
         }
         public List<Variable> Variables { get; set; } = new List<Variable>();
+
+        public string CurrentVariable { get; set; } = "";
+
+        public Dictionary<string, dynamic> CalculatedFunctionValues { get; set; } = new Dictionary<string, dynamic>();
 
         public class Function
         {
             public ReturnType ReturnType { get; set; }
             public string Name { get; set; } = string.Empty;
             public List<Variable> Parameters { get; set; } = new List<Variable>();
+
+            public List<Variable> LocalVariables { get; set; } = new List<Variable> { };
         }
 
         public List<Function> Functions { get; set; } = new List<Function>();
+
+        public string CurrentFunction { get; set; } = "";
+
+        public List<Variable> FunctionCallArgumentsExpressions { get; set; } = new List<Variable>();
+
+        public dynamic? ExpresionValue { get; set; }
+
+        public bool IsVariable(string name)
+        {
+            return Variables.Any(v => v.Name == name);
+        }
+        
+        public Variable GetVariable(string name)
+        {
+            return Variables.First(v => v.Name == name);
+        }
+
+        public Function GetFunction(string name)
+        {
+            return Functions.First(f => f.Name == name);
+        }
+
+        public bool CheckFunctionParameters()
+        {
+            if (FunctionCallArgumentsExpressions.Count == 0)
+            {
+                return false;
+            }
+
+            Function function1 = GetFunction(CurrentFunction);
+
+            if (function1 == null)
+            {
+                return false;
+            }
+
+            for(int i = 0; i < function1.Parameters.Count; i++)
+            {
+                if (function1.Parameters[i].VariableType == Type.Int && FunctionCallArgumentsExpressions[i].VariableType == Type.Int)
+                {
+                    continue;
+                }
+                else if (function1.Parameters[i].VariableType == Type.Float && FunctionCallArgumentsExpressions[i].VariableType == Type.Float)
+                {
+                    continue;
+                }
+                else if (function1.Parameters[i].VariableType == Type.Double && FunctionCallArgumentsExpressions[i].VariableType == Type.Double)
+                {
+                    continue;
+                }
+                else if (function1.Parameters[i].VariableType == Type.String && FunctionCallArgumentsExpressions[i].VariableType == Type.String)
+                {
+                    continue;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
     }
 
     public class MiniLanguageVisitor : MiniLanguageBaseVisitor<ProgramData>
     {
         private ProgramData _result = new ProgramData();
-        private ProgramData _residualPostIncrement = new ProgramData();
-
-        private ProgramData GetVariable(string variableName)
-        {
-            // Căutăm variabila în lista de variabile
-            var variable = _result.Variables.FirstOrDefault(v => v.Name == variableName);
-
-            if (variable == null)
-            {
-                // Dacă nu găsim variabila, aruncăm o excepție sau returnăm un obiect gol
-                throw new Exception($"Variable '{variableName}' not found.");
-            }
-
-            // Creăm un obiect ProgramData și îi adăugăm variabila găsită
-            var programData = new ProgramData();
-            programData.Variables.Add(variable); // Adăugăm variabila la ProgramData
-
-            return programData; // Returnăm obiectul ProgramData
-        }
-
-        private ProgramData PerformUnaryOperation(ProgramData expr, string operation)
-        {
-            var programData = new ProgramData();
-
-            if (operation == "NOT")
-            {
-                if (expr.Variables[0].Value is bool value)
-                {
-                    programData.Variables.Add(new ProgramData.Variable
-                    {
-                        VariableType = ProgramData.Type.Int,
-                        Value = value ? 0 : 1
-                    });
-                }
-                else
-                {
-                    throw new Exception("NOT operation can be applied only to boolean values.");
-                }
-            }
-            else if (operation == "NEGATE")
-            {
-                if (expr.Variables[0].Value is int intValue)
-                {
-                    programData.Variables.Add(new ProgramData.Variable
-                    {
-                        VariableType = ProgramData.Type.Int,
-                        Value = -intValue
-                    });
-                }
-                else if (expr.Variables[0].Value is float floatValue)
-                {
-                    programData.Variables.Add(new ProgramData.Variable
-                    {
-                        VariableType = ProgramData.Type.Float,
-                        Value = -floatValue
-                    });
-                }
-                else if (expr.Variables[0].Value is double doubleValue)
-                {
-                    programData.Variables.Add(new ProgramData.Variable
-                    {
-                        VariableType = ProgramData.Type.Double,
-                        Value = -doubleValue
-                    });
-                }
-                else
-                {
-                    throw new Exception("NEGATE operation can be applied only to numeric values.");
-                }
-            }
-
-            return programData;
-        }
-
-        private ProgramData PerformLogicalOperation(ProgramData left, ProgramData right, string operation)
-        {
-            ProgramData programData = new ProgramData();
-
-            if (operation == "AND")
-            {
-                if (left.Variables[0].Value is bool leftValue && right.Variables[0].Value is bool rightValue)
-                {
-                    programData.Variables.Add(new ProgramData.Variable
-                    {
-                        VariableType = ProgramData.Type.Int,
-                        Value = leftValue && rightValue ? 1 : 0
-                    });
-                }
-                else
-                {
-                    throw new Exception("AND operation can be applied only to boolean values.");
-                }
-            }
-            else if (operation == "OR")
-            {
-                if (left.Variables[0].Value is bool leftValue && right.Variables[0].Value is bool rightValue)
-                {
-                    programData.Variables.Add(new ProgramData.Variable
-                    {
-                        VariableType = ProgramData.Type.Int,
-                        Value = leftValue || rightValue ? 1 : 0
-                    });
-                }
-                else
-                {
-                    throw new Exception("OR operation can be applied only to boolean values.");
-                }
-            }
-
-            return programData;
-        }
-
-        private ProgramData PerformArithmeticOperation(ProgramData left, ProgramData right, string operation)
-        {
-            ProgramData programData = new ProgramData();
-
-            // Functie generica pentru operatii aritmetice
-            Func<object, object, double> applyOperation = (object l, object r) =>
-            {
-                switch (operation)
-                {
-                    case "ADD": return Convert.ToDouble(l) + Convert.ToDouble(r);
-                    case "SUB": return Convert.ToDouble(l) - Convert.ToDouble(r);
-                    case "MUL": return Convert.ToDouble(l) * Convert.ToDouble(r);
-                    case "DIV": return Convert.ToDouble(l) / Convert.ToDouble(r);
-                    case "MOD": return Convert.ToDouble(l) % Convert.ToDouble(r);
-                    default: throw new Exception("Unknown operation.");
-                }
-            };
-
-            // Verificam tipurile si aplicam operatia
-            if (left.Variables[0].Value is int leftInt && right.Variables[0].Value is int rightInt)
-            {
-                programData.Variables.Add(new ProgramData.Variable
-                {
-                    VariableType = ProgramData.Type.Int,
-                    Value = (int)applyOperation(leftInt, rightInt)
-                });
-            }
-            else if (left.Variables[0].Value is float leftFloat && right.Variables[0].Value is float rightFloat)
-            {
-                programData.Variables.Add(new ProgramData.Variable
-                {
-                    VariableType = ProgramData.Type.Float,
-                    Value = (float)applyOperation(leftFloat, rightFloat)
-                });
-            }
-            else if (left.Variables[0].Value is double leftDouble && right.Variables[0].Value is double rightDouble)
-            {
-                programData.Variables.Add(new ProgramData.Variable
-                {
-                    VariableType = ProgramData.Type.Double,
-                    Value = applyOperation(leftDouble, rightDouble)
-                });
-            }
-            else
-            {
-                throw new Exception("Arithmetic operations can be applied only to numeric values.");
-            }
-
-            return programData;
-        }
-
-        private ProgramData PerformRelationalOperation(ProgramData left, ProgramData right, string operation)
-        {
-            ProgramData programData = new ProgramData();
-
-            // Functie generica pentru comparatii
-            Func<object, object, int> compareValues = (object l, object r) =>
-            {
-                bool result = false;
-                switch (operation)
-                {
-                    case "EQUAL": result = l.Equals(r); break;
-                    case "NOT_EQUAL": result = !l.Equals(r); break;
-                    case "LESS_THAN": result = Comparer<object>.Default.Compare(l, r) < 0; break;
-                    case "LESS_THAN_OR_EQUAL": result = Comparer<object>.Default.Compare(l, r) <= 0; break;
-                    case "GREATER_THAN": result = Comparer<object>.Default.Compare(l, r) > 0; break;
-                    case "GREATER_THAN_OR_EQUAL": result = Comparer<object>.Default.Compare(l, r) >= 0; break;
-                    default: throw new Exception("Unknown operation.");
-                }
-                return result ? 1 : 0;
-            };
-
-            // Verificam tipul de date si aplicam comparatia
-            if (left.Variables[0].Value is int leftInt && right.Variables[0].Value is int rightInt)
-            {
-                programData.Variables.Add(new ProgramData.Variable
-                {
-                    VariableType = ProgramData.Type.Int,
-                    Value = compareValues(leftInt, rightInt)
-                });
-            }
-            else if (left.Variables[0].Value is float leftFloat && right.Variables[0].Value is float rightFloat)
-            {
-                programData.Variables.Add(new ProgramData.Variable
-                {
-                    VariableType = ProgramData.Type.Int,
-                    Value = compareValues(leftFloat, rightFloat)
-                });
-            }
-            else if (left.Variables[0].Value is double leftDouble && right.Variables[0].Value is double rightDouble)
-            {
-                programData.Variables.Add(new ProgramData.Variable
-                {
-                    VariableType = ProgramData.Type.Int,
-                    Value = compareValues(leftDouble, rightDouble)
-                });
-            }
-            else
-            {
-                throw new Exception("Relational operations can be applied only to numeric values.");
-            }
-
-            return programData;
-        }
 
         public override ProgramData VisitProgram([Antlr4.Runtime.Misc.NotNull] MiniLanguageParser.ProgramContext context)
         {
@@ -274,6 +128,30 @@ namespace MinimalCompiler
             return _result;
         }
 
+        public override ProgramData VisitDeclaration([Antlr4.Runtime.Misc.NotNull] MiniLanguageParser.DeclarationContext context)
+        {
+            var variableName = context.VARIABLE_NAME().GetText();
+            var variableType = ParseType(context.type());
+
+            _result.Variables.Add(new ProgramData.Variable
+            {
+                Name = variableName,
+                VariableType = variableType
+            });
+
+            return _result;
+        }
+
+        private ProgramData.Type ParseType(MiniLanguageParser.TypeContext context)
+        {
+            if (context.INTEGER_TYPE() != null) return ProgramData.Type.Int;
+            if (context.FLOAT_TYPE() != null) return ProgramData.Type.Float;
+            if (context.STRING_TYPE() != null) return ProgramData.Type.String;
+            if (context.DOUBLE_TYPE() != null) return ProgramData.Type.Double;
+
+            throw new Exception("Unknown variable type");
+        }
+
         public override ProgramData VisitDeclaration_and_assignment([Antlr4.Runtime.Misc.NotNull] MiniLanguageParser.Declaration_and_assignmentContext context)
         {
             // 1. Preia tipul variabilei
@@ -281,18 +159,101 @@ namespace MinimalCompiler
 
             // 2. Preia numele variabilei
             var variableName = context.VARIABLE_NAME().GetText();
+            _result.CurrentVariable = variableName;
+
+            _result.Variables.Add(new ProgramData.Variable
+            {
+                Name = variableName,
+                VariableType = variableType,
+                Value = null
+            });
 
             // 3. Preia valoarea atribuită variabilei
             var valueContext = context.value();
             var value = ParseValue(valueContext);
 
             // 4. Adaugă variabila și valoarea în rezultatul final
-            _result.Variables.Add(new ProgramData.Variable
+            if(_result.Variables.Last().Value == null)
             {
-                Name = variableName,
-                VariableType = variableType,
-                Value = value
+                _result.Variables.Last().Value = value;
+            }
+
+            _result.CurrentVariable = "";
+            return _result;
+        }
+
+        public override ProgramData VisitFunction_declaration([Antlr4.Runtime.Misc.NotNull] MiniLanguageParser.Function_declarationContext context)
+        {
+            var functionName = context.VARIABLE_NAME().GetText();
+            var returnType = FunctionParseType(context.return_type());
+            var blockContext = context.block();
+            var blockNewLineContext = context.new_line_block();
+
+            // Adaugă funcția la lista de funcții
+            _result.Functions.Add(new ProgramData.Function
+            {
+                Name = functionName,
+                ReturnType = returnType
             });
+
+            // Vizitează parametrii
+            var parametersContext = context.parameters();
+            if (parametersContext != null)
+            {
+                // Iterăm prin parametri
+                for (int i = 0; i < parametersContext.type().Count(); i++)
+                {
+                    var paramTypeContext = parametersContext.type()[i]; // Tipul parametrului
+                    var paramNameContext = parametersContext.VARIABLE_NAME()[i]; // Numele parametrului
+
+                    // Accesăm corect tipul parametrului
+                    var paramType = ParseType(paramTypeContext);
+                    var paramName = paramNameContext.GetText();
+
+                    // Adăugăm parametrul la funcție
+                    _result.Functions.Last().Parameters.Add(new ProgramData.Variable
+                    {
+                        Name = paramName,
+                        VariableType = paramType
+                    });
+                }
+            }
+
+            _result.CalculatedFunctionValues.Add(functionName, null);
+            _result.CurrentFunction = functionName;
+
+            if (blockContext != null)
+            {
+                VisitBlock(blockContext);
+            }
+            else if (blockNewLineContext != null)
+                VisitNew_line_block(blockNewLineContext);
+
+            _result.CurrentFunction = "";
+
+            return _result;
+        }
+
+        public override ProgramData VisitMain_declaration([Antlr4.Runtime.Misc.NotNull] MiniLanguageParser.Main_declarationContext context)
+        {
+            var returnType = FunctionParseType(context.return_type());
+            var functionName = context.MAIN_FUNCTION().GetText();
+            var blockContext = context.block();
+            var blockNewLineContext = context.new_line_block();
+
+            // Adaugă funcția la lista de funcții
+            _result.Functions.Add(new ProgramData.Function
+            {
+                Name = functionName,
+                ReturnType = returnType
+            });
+
+            if (blockContext != null)
+            {
+                VisitBlock(blockContext);
+            }
+            else if (blockNewLineContext != null)
+                VisitNew_line_block(blockNewLineContext);
 
             return _result;
         }
@@ -388,184 +349,263 @@ namespace MinimalCompiler
             return _result;
         }
 
-        public override ProgramData VisitDeclaration([Antlr4.Runtime.Misc.NotNull] MiniLanguageParser.DeclarationContext context)
-        {
-            var variableName = context.VARIABLE_NAME().GetText();
-            var variableType = ParseType(context.type());
-
-            _result.Variables.Add(new ProgramData.Variable
-            {
-                Name = variableName,
-                VariableType = variableType
-            });
-
-            return _result;
-        }
-
         public override ProgramData VisitExpression([NotNull] MiniLanguageParser.ExpressionContext context)
         {
-            // Începem cu logical_expression
             return VisitLogical_expression(context.logical_expression());
         }
 
         public override ProgramData VisitLogical_expression([NotNull] MiniLanguageParser.Logical_expressionContext context)
         {
-            // Primul termen
-            var left = VisitRelational_or_equality_expression(context.relational_or_equality_expression(0));
-
-            // Verificăm pentru operatorii logici AND sau OR
-            for (int i = 1; i < context.relational_or_equality_expression().Length; i++)
+            if (context.relational_or_equality_expression().Length == 1)
             {
-                var operatorToken = context.GetChild(2 * i - 1); // operatorul AND / OR
-                var right = VisitRelational_or_equality_expression(context.relational_or_equality_expression(i));
+                return VisitRelational_or_equality_expression(context.relational_or_equality_expression()[0]);
+            }
+            else
+            {
+                ProgramData left = VisitRelational_or_equality_expression(context.relational_or_equality_expression()[0]);
+                dynamic? first = left.ExpresionValue;
+                ProgramData right = VisitRelational_or_equality_expression(context.relational_or_equality_expression()[1]);
+                dynamic? second = right.ExpresionValue;
 
-                // Procesăm operatorul logic
-                if (operatorToken.GetText() == "&&")
+                if (left.ExpresionValue is string || right.ExpresionValue is string)
                 {
-                    // Operațiunea AND
-                    left = PerformLogicalOperation(left, right, "AND");
+                    throw new Exception("A string can't be used in a logical operation.");
                 }
-                else if (operatorToken.GetText() == "||")
+                if (context.AND() != null)
                 {
-                    // Operațiunea OR
-                    left = PerformLogicalOperation(left, right, "OR");
+                    _result.ExpresionValue = first && second;
+                    return _result;
+                }
+                else if (context.OR() != null)
+                {
+                    _result.ExpresionValue = first || second;
+                    return _result;
+                }
+                else
+                {
+                    throw new Exception("Unknown operation.");
                 }
             }
-
-            return left;
         }
 
         public override ProgramData VisitRelational_or_equality_expression([NotNull] MiniLanguageParser.Relational_or_equality_expressionContext context)
         {
-            // Primul termen
-            var left = VisitAdditive_or_subtractive_expression(context.additive_or_subtractive_expression(0));
-
-            // Verificăm operatorii de comparație
-            for (int i = 1; i < context.additive_or_subtractive_expression().Length; i++)
+            if(context.additive_or_subtractive_expression().Length == 1)
             {
-                var operatorToken = context.GetChild(2 * i - 1); // operatorul de comparație
-                var right = VisitAdditive_or_subtractive_expression(context.additive_or_subtractive_expression(i));
+                return VisitAdditive_or_subtractive_expression(context.additive_or_subtractive_expression()[0]);
+            }
+            else
+            {
+                ProgramData left = VisitAdditive_or_subtractive_expression(context.additive_or_subtractive_expression()[0]);
+                dynamic? first = left.ExpresionValue;
+                ProgramData right = VisitAdditive_or_subtractive_expression(context.additive_or_subtractive_expression()[1]);
+                dynamic? second = right.ExpresionValue;
 
-                // Procesăm operatorul de comparație
-                if (operatorToken.GetText() == "==")
+                if (context.EQUAL() != null)
                 {
-                    left = PerformRelationalOperation(left, right, "EQUAL");
+                    _result.ExpresionValue = first == second;
+                    return _result;
                 }
-                else if (operatorToken.GetText() == "!=")
+                else if (context.NOT_EQUAL() != null)
                 {
-                    left = PerformRelationalOperation(left, right, "NOT_EQUAL");
+                    _result.ExpresionValue = first != second;
+                    return _result;
                 }
-                else if (operatorToken.GetText() == "<")
+                else if (left.ExpresionValue is string || right.ExpresionValue is string)
                 {
-                    left = PerformRelationalOperation(left, right, "LESS_THAN");
+                    throw new Exception("It's not a native operation.Only == and != are.");
                 }
-                else if (operatorToken.GetText() == "<=")
+                else if (context.GREATER_THAN() != null)
                 {
-                    left = PerformRelationalOperation(left, right, "LESS_THAN_OR_EQUAL");
+                    _result.ExpresionValue = first > second;
+                    return _result;
                 }
-                else if (operatorToken.GetText() == ">")
+                else if (context.GREATER_THAN_OR_EQUAL() != null)
                 {
-                    left = PerformRelationalOperation(left, right, "GREATER_THAN");
+                    _result.ExpresionValue = first >= second;
+                    return _result;
                 }
-                else if (operatorToken.GetText() == ">=")
+                else if (context.LESS_THAN() != null)
                 {
-                    left = PerformRelationalOperation(left, right, "GREATER_THAN_OR_EQUAL");
+                    _result.ExpresionValue = first < second;
+                    return _result;
+                }
+                else if (context.LESS_THAN_OR_EQUAL() != null)
+                {
+                    _result.ExpresionValue = first <= second;
+                    return _result;
+                }
+                else
+                {
+                    throw new Exception("Unknown operation.");
                 }
             }
-
-            return left;
         }
 
         public override ProgramData VisitAdditive_or_subtractive_expression([NotNull] MiniLanguageParser.Additive_or_subtractive_expressionContext context)
         {
-            // Primul termen
-            var left = VisitMultiplicative_expression(context.multiplicative_expression(0));
-
-            // Verificăm operatorii de adunare sau scădere
-            for (int i = 1; i < context.multiplicative_expression().Length; i++)
+            if(context.multiplicative_expression().Length == 1)
             {
-                var operatorToken = context.GetChild(2 * i - 1); // operatorul + sau -
-                var right = VisitMultiplicative_expression(context.multiplicative_expression(i));
-
-                // Procesăm operatorul de adunare sau scădere
-                if (operatorToken.GetText() == "+")
-                {
-                    left = PerformArithmeticOperation(left, right, "ADD");
-                }
-                else if (operatorToken.GetText() == "-")
-                {
-                    left = PerformArithmeticOperation(left, right, "SUB");
-                }
+                return VisitMultiplicative_expression(context.multiplicative_expression()[0]);
             }
 
-            return left;
+            ProgramData left = VisitMultiplicative_expression(context.multiplicative_expression()[0]);
+            dynamic? first2 = left.ExpresionValue;
+            ProgramData right = VisitMultiplicative_expression(context.multiplicative_expression()[1]);
+            dynamic? second2 = right.ExpresionValue;
+
+            if (context.PLUS() != null)
+            {
+                if (left.ExpresionValue is string || right.ExpresionValue is string)
+                {
+                    if (left.ExpresionValue.ToString() != null && right.ExpresionValue.ToString() != null)
+                    {
+                        var first = left.ExpresionValue.ToString();
+                        var second = right.ExpresionValue.ToString();
+                        if (first is string && second is string)
+                        {
+                            _result.ExpresionValue = first + second;
+                        }
+                        else if (first is string)
+                        {
+                            _result.ExpresionValue = first + second.ToString();
+                        }
+                        else
+                        {
+                            _result.ExpresionValue = first.ToString() + second;
+                        }
+                    }
+                    else
+                    {
+                        throw new Exception("Expression values cannot be null.");
+                    }
+                }
+                else
+                {
+                    _result.ExpresionValue = first2 + second2;
+                }
+            }
+            else if (context.MINUS() != null)
+            {
+                if (left.ExpresionValue is string || right.ExpresionValue is string)
+                {
+                    throw new Exception("A string can't be subtracted.");
+                }
+                _result.ExpresionValue = first2 - second2;
+            }
+            else
+            {
+                throw new Exception("Unknown operation.");
+            }
+
+            return _result;
         }
 
         public override ProgramData VisitMultiplicative_expression([NotNull] MiniLanguageParser.Multiplicative_expressionContext context)
         {
-            // Primul termen
-            var left = VisitUnary_expression(context.unary_expression(0));
-
-            // Verificăm operatorii * sau /
-            for (int i = 1; i < context.unary_expression().Length; i++)
+            if(context.unary_expression().Length == 1)
             {
-                var operatorToken = context.GetChild(2 * i - 1); // operatorul * sau /
-                var right = VisitUnary_expression(context.unary_expression(i));
+                return VisitUnary_expression(context.unary_expression()[0]);
+            }
+            else
+            {
+                ProgramData left = VisitUnary_expression(context.unary_expression()[0]);
+                dynamic? first = left.ExpresionValue;
+                ProgramData right = VisitUnary_expression(context.unary_expression()[1]);
+                dynamic? second = right.ExpresionValue;
 
-                // Procesăm operatorul de înmulțire sau împărțire
-                if (operatorToken.GetText() == "*")
+                if (left.ExpresionValue is string || right.ExpresionValue is string)
                 {
-                    left = PerformArithmeticOperation(left, right, "MUL");
+                    if (context.ASTERISK() != null || context.SLASH() != null)
+                    {
+                        throw new Exception("A string can't be multiplied or divided.");
+                    }
                 }
-                else if (operatorToken.GetText() == "/")
+
+                if (context.ASTERISK() != null)
                 {
-                    left = PerformArithmeticOperation(left, right, "DIV");
+                    _result.ExpresionValue = first* second;
+                    return _result;
+                }
+                else if (context.SLASH() != null)
+                {
+                    _result.ExpresionValue = first / second;
+                    return _result;
+                }
+                else
+                {
+                    throw new Exception("Unknown operation.");
                 }
             }
-
-            return left;
         }
 
         public override ProgramData VisitUnary_expression([NotNull] MiniLanguageParser.Unary_expressionContext context)
         {
+            ProgramData value = VisitPrimary_expression(context.primary_expression());
+
+            if(value.ExpresionValue is string && context.NOT() == null && context.MINUS() == null)
+            {
+                return value;
+            }
+            else if (value.ExpresionValue is string && (context.NOT() != null || context.MINUS() != null))
+            {
+                throw new Exception("A string can't be negated or change it's sign.");
+            }
+
             if (context.NOT() != null)
             {
-                var expr = VisitPrimary_expression(context.primary_expression());
-                return PerformUnaryOperation(expr, "NOT");
+                _result.ExpresionValue = !value.ExpresionValue;
+                return _result;
             }
             else if (context.MINUS() != null)
             {
-                var expr = VisitPrimary_expression(context.primary_expression());
-                return PerformUnaryOperation(expr, "NEGATE");
+                _result.ExpresionValue = -value.ExpresionValue;
+                return _result;
             }
-
-            return VisitPrimary_expression(context.primary_expression());
+            else
+            {
+                return value;
+            }
         }
 
-        public override ProgramData VisitPrimary_expression([Antlr4.Runtime.Misc.NotNull] MiniLanguageParser.Primary_expressionContext context)
+        public override ProgramData VisitPrimary_expression([NotNull] MiniLanguageParser.Primary_expressionContext context)
         {
             if (context.VARIABLE_NAME() != null)
             {
-                var variableName = context.VARIABLE_NAME().GetText();
-                return GetVariable(variableName);
+                if(!_result.IsVariable(context.VARIABLE_NAME().GetText()))
+                {
+                    throw new Exception("Variable not found.");
+                }
+                _result.ExpresionValue = _result.GetVariable(context.VARIABLE_NAME().GetText()).Value;
+                return _result;
             }
             else if (context.numeral_value() != null)
             {
-                return VisitNumeral_value(context.numeral_value());
-            }
-            else if (context.STRING_VALUE() != null)
-            {
-                var value = context.STRING_VALUE().GetText();
-                ProgramData programData = new ProgramData();
-                programData.Variables.Add(new ProgramData.Variable
+                if(context.numeral_value().INTEGER_VALUE() != null)
                 {
-                    VariableType = ProgramData.Type.String,
-                    Value = value
-                });
-                return programData;
+                    _result.ExpresionValue = int.Parse(context.numeral_value().INTEGER_VALUE().GetText());
+                    return _result;
+                }
+                else if (context.numeral_value().FLOAT_VALUE() != null)
+                {
+                    _result.ExpresionValue = float.Parse(context.numeral_value().FLOAT_VALUE().GetText());
+                    return _result;
+                }
+                else if (context.numeral_value().DOUBLE_VALUE() != null)
+                {
+                    _result.ExpresionValue = double.Parse(context.numeral_value().DOUBLE_VALUE().GetText());
+                    return _result;
+                }
+                else
+                {
+                    throw new Exception("Unknown numeral value.");
+                }
             }
-
-            throw new Exception("Unexpected primary expression");
+            else
+            {
+                 _result.ExpresionValue = context.STRING_VALUE().GetText().Trim('"');
+                return _result;
+            }
         }
 
         public override ProgramData VisitFor_statement([NotNull] MiniLanguageParser.For_statementContext context)
@@ -621,10 +661,6 @@ namespace MinimalCompiler
             {
                 VisitPrev_inccrement_or_decrement_no_semicolon(prevIncrementOrDecrement);
             }
-            else if (postIncrementOrDecrement != null)
-            {
-                _residualPostIncrement = VisitPost_inccrement_or_decrement_no_semicolon(postIncrementOrDecrement);
-            }
 
             return _result;
         }
@@ -633,35 +669,54 @@ namespace MinimalCompiler
         {
             if (context.assignment() != null)
             {
-                VisitAssignment(context.assignment());
+               return VisitAssignment(context.assignment());
             }
             else if (context.assignment_op() != null)
             {
-                VisitAssignment_op(context.assignment_op());
+                return VisitAssignment_op(context.assignment_op());
             }
-            else if(context.declaration() != null)
+            else if (context.declaration() != null)
             {
-                VisitDeclaration(context.declaration());
+                return VisitDeclaration(context.declaration());
             }
             else if (context.declaration_and_assignment() != null)
             {
-                VisitDeclaration_and_assignment(context.declaration_and_assignment());
+                return VisitDeclaration_and_assignment(context.declaration_and_assignment());
             }
-            else if(context.function_call() != null)
+            else if (context.function_call() != null)
             {
                 VisitFunction_call(context.function_call());
             }
             else if (context.if_statement() != null)
             {
-                VisitIf_statement(context.if_statement());
+                return VisitIf_statement(context.if_statement());
             }
             else if (context.while_statement() != null)
             {
-                VisitWhile_statement(context.while_statement());
+                return VisitWhile_statement(context.while_statement());
             }
             else if (context.for_statement() != null)
             {
-                VisitFor_statement(context.for_statement());
+                return VisitFor_statement(context.for_statement());
+            }
+            else if (context.return_statement() != null)
+            {
+                return VisitReturn_statement(context.return_statement());
+            }
+            else
+            {
+                throw new Exception("Unkown statement");
+            }
+
+            return _result;
+        }
+
+        public override ProgramData VisitReturn_statement([NotNull] MiniLanguageParser.Return_statementContext context)
+        {
+            ProgramData hihihaha = VisitExpression(context.expression());
+            if (_result.GetFunction(_result.CurrentFunction) != null)
+            {
+                _result.CalculatedFunctionValues[_result.CurrentFunction] = hihihaha.ExpresionValue;
             }
             return _result;
         }
@@ -683,7 +738,64 @@ namespace MinimalCompiler
 
         public override ProgramData VisitFunction_call([NotNull] MiniLanguageParser.Function_callContext context)
         {
-            return _result;
+            if(_result.GetFunction(context.VARIABLE_NAME().GetText()) == null)
+            {
+                throw new Exception("Function not found.");
+            }
+            _result.CurrentFunction = context.VARIABLE_NAME().GetText();
+            return VisitArguments(context.arguments());
+        }
+
+        public override ProgramData VisitFunction_call_no_semicolon([NotNull] MiniLanguageParser.Function_call_no_semicolonContext context)
+        {
+            if (_result.GetFunction(context.VARIABLE_NAME().GetText()) == null)
+            {
+                throw new Exception("Function not found.");
+            }
+            _result.CurrentFunction = context.VARIABLE_NAME().GetText();
+            return VisitArguments(context.arguments());
+        }
+
+        public override ProgramData VisitArguments([NotNull] MiniLanguageParser.ArgumentsContext context)
+        {
+            // Curăță argumentele anterioare din lista de argumente
+            if (_result.FunctionCallArgumentsExpressions.Count != 0)
+            {
+                _result.FunctionCallArgumentsExpressions.Clear();
+            }
+
+            // Verifică dacă există variabile
+            if (context.VARIABLE_NAME().Length > 0)
+            {
+                foreach (var variableName in context.VARIABLE_NAME())
+                {
+                    // Verifică dacă variabila există
+                    if (!_result.IsVariable(variableName.GetText()))
+                    {
+                        throw new Exception($"Variable '{variableName.GetText()}' not found.");
+                    }
+
+                    // Adaugă valoarea variabilei în lista de argumente
+                    _result.FunctionCallArgumentsExpressions.Add(_result.GetVariable(variableName.GetText()));
+                }
+            }
+            else
+            {
+                // Dacă nu sunt argumente de tip variabilă
+                throw new Exception("Unknown argument type.");
+            }
+
+            // Verifică dacă parametrii funcției se potrivesc cu argumentele apelului
+            if (_result.CheckFunctionParameters())
+            {
+                _result.GetVariable(_result.CurrentVariable).Value = _result.CalculatedFunctionValues[_result.CurrentFunction];
+                _result.CurrentFunction = "";
+                return _result; // Parametrii se potrivesc, întoarce rezultatul
+            }
+            else
+            {
+                throw new Exception("Function parameters don't match.");
+            }
         }
 
         public override ProgramData VisitNew_line_block([NotNull] MiniLanguageParser.New_line_blockContext context)
@@ -699,69 +811,6 @@ namespace MinimalCompiler
         public override ProgramData VisitWhile_statement([NotNull] MiniLanguageParser.While_statementContext context)
         {
             return base.VisitWhile_statement(context);
-        }
-
-        public override ProgramData VisitFunction_declaration([Antlr4.Runtime.Misc.NotNull] MiniLanguageParser.Function_declarationContext context)
-        {
-            var functionName = context.VARIABLE_NAME().GetText();
-            var returnType = FunctionParseType(context.return_type());
-
-            // Adaugă funcția la lista de funcții
-            _result.Functions.Add(new ProgramData.Function
-            {
-                Name = functionName,
-                ReturnType = returnType
-            });
-
-            // Vizitează parametrii
-            var parametersContext = context.parameters();
-            if (parametersContext != null)
-            {
-                // Iterăm prin parametri
-                for (int i = 0; i < parametersContext.type().Count(); i++)
-                {
-                    var paramTypeContext = parametersContext.type()[i]; // Tipul parametrului
-                    var paramNameContext = parametersContext.VARIABLE_NAME()[i]; // Numele parametrului
-
-                    // Accesăm corect tipul parametrului
-                    var paramType = ParseType(paramTypeContext);
-                    var paramName = paramNameContext.GetText();
-
-                    // Adăugăm parametrul la funcție
-                    _result.Functions.Last().Parameters.Add(new ProgramData.Variable
-                    {
-                        Name = paramName,
-                        VariableType = paramType
-                    });
-                }
-            }
-
-            return _result;
-        }
-
-        public override ProgramData VisitMain_declaration([Antlr4.Runtime.Misc.NotNull] MiniLanguageParser.Main_declarationContext context)
-        {
-            var returnType = FunctionParseType(context.return_type());
-            var functionName = context.MAIN_FUNCTION().GetText();
-
-            // Adaugă funcția la lista de funcții
-            _result.Functions.Add(new ProgramData.Function
-            {
-                Name = functionName,
-                ReturnType = returnType
-            });
-
-            return _result;
-        }
-
-        private ProgramData.Type ParseType(MiniLanguageParser.TypeContext context)
-        {
-            if (context.INTEGER_TYPE() != null) return ProgramData.Type.Int;
-            if (context.FLOAT_TYPE() != null) return ProgramData.Type.Float;
-            if (context.STRING_TYPE() != null) return ProgramData.Type.String;
-            if(context.DOUBLE_TYPE() != null) return ProgramData.Type.Double;
-
-            throw new Exception("Unknown variable type");
         }
 
         private ProgramData.ReturnType FunctionParseType(MiniLanguageParser.Return_typeContext context)
@@ -781,6 +830,22 @@ namespace MinimalCompiler
             {
                 return valueContext.STRING_VALUE().GetText().Trim('"');
             }
+            else if (valueContext.expression() != null)
+            {
+                var expressionResult = Visit(valueContext.expression());
+                if (expressionResult.ExpresionValue != null)
+                {
+                    return expressionResult.ExpresionValue;
+                }
+                else
+                {
+                    throw new Exception("Unknown expression value.");
+                }
+            }
+            else if (valueContext.function_call_no_semicolon() != null)
+            {
+                return VisitFunction_call_no_semicolon(valueContext.function_call_no_semicolon());
+            }
             else if (valueContext.numeral_value().FLOAT_VALUE() != null)
             {
                 return float.Parse(valueContext.numeral_value().FLOAT_VALUE().GetText());
@@ -792,12 +857,6 @@ namespace MinimalCompiler
             else if (valueContext.VARIABLE_NAME() != null)
             {
                 return valueContext.VARIABLE_NAME().GetText();
-            }
-            else if (valueContext.expression() != null)
-            {
-                // Ar trebui să implementezi un vizitator pentru expresii
-                var expressionResult = Visit(valueContext.expression());
-                return expressionResult; // Este posibil să trebuiască să returnezi un obiect adecvat
             }
             else
             {
@@ -908,6 +967,8 @@ namespace MinimalCompiler
                 {
                     Console.WriteLine($"Type: {parameter.VariableType}, Name: {parameter.Name}");
                 }
+                //Console.WriteLine("Local variable:");
+                //foreach(var parameter in function)
             }
         }
 
