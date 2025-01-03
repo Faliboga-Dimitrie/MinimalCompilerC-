@@ -104,6 +104,12 @@ public interface IMiniLanguageVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitReturn_statement([NotNull] MiniLanguageParser.Return_statementContext context);
 	/// <summary>
+	/// Visit a parse tree produced by <see cref="MiniLanguageParser.function_call_no_semicolon"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitFunction_call_no_semicolon([NotNull] MiniLanguageParser.Function_call_no_semicolonContext context);
+	/// <summary>
 	/// Visit a parse tree produced by <see cref="MiniLanguageParser.function_call"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
@@ -181,6 +187,12 @@ public interface IMiniLanguageVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitType([NotNull] MiniLanguageParser.TypeContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="MiniLanguageParser.return_type"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitReturn_type([NotNull] MiniLanguageParser.Return_typeContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="MiniLanguageParser.value"/>.
 	/// </summary>

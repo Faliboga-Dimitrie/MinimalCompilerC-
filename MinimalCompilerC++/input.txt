@@ -1,20 +1,44 @@
-int test(int a, int b) {
-	return a + b;
+int addIntegers(int first, int second)
+{
+	return first + second;
 }
 
-int a;//hahahahahahahaha
+float divideIntegers(int first, int second)
+{
+	if (second == 0)
+	{
+		return 0; //We don’t want to handle exceptions, so we’ll return 0 for simplicity
+	}
+	return first / second;
+}
 
-int b = 5;
+double globalVariable = 15.67; //Using global variables is bad practice
 
-float Dan = 23.5;
+int main()
+{
+	int myFirstVariable = 17;
+	int mySecondVariable = 45;
+	int myThirdVariable = 3;
 
-//Ana are mere
+	for (int i = 0; i < myThirdVariable; ++i)
+	{
+		myFirstVariable += i;
+	}
 
-int main() {
-	int a = 5; 
-	int b = 6;
-	int c = test(a, b);
+	string myString = "";
+
+	if (myFirstVariable >= mySecondVariable && globalVariable != 16.54)
+	{
+		myString = "Both conditions are true";
+	}
+	else
+	{
+		myString = "At least one of the conditions is false";
+		int temp = myFirstVariable + 5;
+	}
+
+	myThirdVariable = addIntegers(myFirstVariable, mySecondVariable);
+	float myFloat = divideIntegers(myThirdVariable, myFirstVariable);
 	return 0;
 }
 
-//Gata programul

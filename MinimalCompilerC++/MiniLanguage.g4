@@ -10,14 +10,13 @@ program: (
 	)* main_declaration COMMENT* EOF;
 
 main_declaration:
-	VOID_TYPE
-	| INTEGER_TYPE MAIN_FUNCTION LPARAN RPARAN (
+	return_type MAIN_FUNCTION LPARAN RPARAN (
 		COMMENT? new_line_block
 		| block
 	);
 
 function_declaration:
-	type VARIABLE_NAME LPARAN parameters? (
+	return_type VARIABLE_NAME LPARAN parameters? RPARAN (
 		COMMENT? new_line_block
 		| block
 	);
@@ -41,11 +40,13 @@ if_statement:
 		COMMENT? new_line_block
 		| block
 	) (ELSE (COMMENT? new_line_block | block))?;
+
 while_statement:
 	WHILE LPARAN expression RPARAN (
 		COMMENT? new_line_block
 		| block
 	);
+
 for_statement:
 	FOR LPARAN for_clause RPARAN (
 		COMMENT? new_line_block
@@ -60,54 +61,63 @@ for_clause: (
 			prev_inccrement_or_decrement_no_semicolon
 			| post_inccrement_or_decrement_no_semicolon
 		)
-	)? SEMICOLON;
+	)?;
+
 return_statement: RETURN expression SEMICOLON COMMENT?;
 
+function_call_no_semicolon:
+	VARIABLE_NAME LPARAN arguments? RPARAN;
 function_call: VARIABLE_NAME LPARAN arguments? RPARAN SEMICOLON;
 arguments: expression (COMMA expression)*;
 
 expression: logical_expression;
 
 logical_expression:
-	relational_or_equality_expression (
-		(AND | OR) relational_or_equality_expression
-	)*;
+	relational_or_equality_expression
+	| relational_or_equality_expression (AND | OR) relational_or_equality_expression;
 
 relational_or_equality_expression:
-	additive_or_subtractive_expression (
+	additive_or_subtractive_expression
+	| additive_or_subtractive_expression (
 		EQUAL
 		| NOT_EQUAL
 		| LESS_THAN
 		| LESS_THAN_OR_EQUAL
 		| GREATER_THAN
-		| GREATER_THAN_OR_EQUAL additive_or_subtractive_expression
+		| GREATER_THAN_OR_EQUAL
 	) additive_or_subtractive_expression;
 
 additive_or_subtractive_expression:
-	multiplicative_expression (
-		(PLUS | MINUS) multiplicative_expression
-	)*;
+	multiplicative_expression
+	| multiplicative_expression (PLUS | MINUS) multiplicative_expression;
 
 multiplicative_expression:
-	unary_expression ((ASTERISK | SLASH) unary_expression)*;
+	unary_expression
+	| unary_expression (ASTERISK | SLASH) unary_expression;
 
-unary_expression: (NOT | MINUS)? primary_expression
-	| (STRING_VALUE | LPARAN STRING_VALUE RPARAN);
+unary_expression: (NOT | MINUS)? primary_expression;
 
 primary_expression:
 	VARIABLE_NAME
 	| numeral_value
-	| LPARAN primary_expression RPARAN;
+	| STRING_VALUE;
 
 declaration_and_assignment_no_semicolon:
 	type VARIABLE_NAME EQUALS value;
 declaration_and_assignment:
 	type VARIABLE_NAME EQUALS value SEMICOLON COMMENT?;
 declaration: type VARIABLE_NAME SEMICOLON COMMENT?;
-type: INTEGER_TYPE | FLOAT_TYPE | STRING_TYPE;
+type: INTEGER_TYPE | FLOAT_TYPE | STRING_TYPE | DOUBLE_TYPE;
 
-value: numeral_value | VARIABLE_NAME;
-numeral_value: INTEGER_VALUE | FLOAT_VALUE;
+return_type: type | VOID_TYPE;
+
+value:
+	numeral_value
+	| VARIABLE_NAME
+	| function_call_no_semicolon
+	| STRING_VALUE
+	| LPARAN expression RPARAN;
+numeral_value: INTEGER_VALUE | FLOAT_VALUE | DOUBLE_TYPE;
 
 assignment_no_semicolon: VARIABLE_NAME EQUALS value;
 assignment: VARIABLE_NAME EQUALS value SEMICOLON COMMENT?;
@@ -144,6 +154,7 @@ NEW_LINE: '\n';
 
 INTEGER_TYPE: 'int';
 FLOAT_TYPE: 'float';
+DOUBLE_TYPE: 'double';
 STRING_TYPE: 'string';
 VOID_TYPE: 'void';
 
