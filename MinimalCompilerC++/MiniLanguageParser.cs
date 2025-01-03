@@ -751,8 +751,8 @@ public partial class MiniLanguageParser : Parser {
 	public partial class If_statementContext : ParserRuleContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IF() { return GetToken(MiniLanguageParser.IF, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode LPARAN() { return GetToken(MiniLanguageParser.LPARAN, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public Logical_expressionContext logical_expression() {
-			return GetRuleContext<Logical_expressionContext>(0);
+		[System.Diagnostics.DebuggerNonUserCode] public ExpressionContext expression() {
+			return GetRuleContext<ExpressionContext>(0);
 		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode RPARAN() { return GetToken(MiniLanguageParser.RPARAN, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public New_line_blockContext[] new_line_block() {
@@ -798,7 +798,7 @@ public partial class MiniLanguageParser : Parser {
 			State = 153;
 			Match(LPARAN);
 			State = 154;
-			logical_expression();
+			expression();
 			State = 155;
 			Match(RPARAN);
 			State = 161;
@@ -2731,7 +2731,7 @@ public partial class MiniLanguageParser : Parser {
 		147,151,3,16,8,0,148,151,3,18,9,0,149,151,3,22,11,0,150,141,1,0,0,0,150,
 		142,1,0,0,0,150,143,1,0,0,0,150,144,1,0,0,0,150,145,1,0,0,0,150,146,1,
 		0,0,0,150,147,1,0,0,0,150,148,1,0,0,0,150,149,1,0,0,0,151,13,1,0,0,0,152,
-		153,5,8,0,0,153,154,5,33,0,0,154,155,3,32,16,0,155,161,5,34,0,0,156,158,
+		153,5,8,0,0,153,154,5,33,0,0,154,155,3,30,15,0,155,161,5,34,0,0,156,158,
 		5,45,0,0,157,156,1,0,0,0,157,158,1,0,0,0,158,159,1,0,0,0,159,162,3,8,4,
 		0,160,162,3,10,5,0,161,157,1,0,0,0,161,160,1,0,0,0,162,171,1,0,0,0,163,
 		169,5,9,0,0,164,166,5,45,0,0,165,164,1,0,0,0,165,166,1,0,0,0,166,167,1,

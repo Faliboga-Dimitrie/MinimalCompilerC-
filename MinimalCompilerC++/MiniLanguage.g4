@@ -36,10 +36,9 @@ statement:
 	| return_statement;
 
 if_statement:
-	IF LPARAN logical_expression RPARAN (
-		COMMENT? new_line_block
-		| block
-	) (ELSE (COMMENT? new_line_block | block))?;
+	IF LPARAN expression RPARAN (COMMENT? new_line_block | block) (
+		ELSE (COMMENT? new_line_block | block)
+	)?;
 
 while_statement:
 	WHILE LPARAN expression RPARAN (
@@ -198,7 +197,7 @@ COMMA: ',';
 INTEGER_VALUE: DIGIT | NON_ZERO_DIGIT DIGIT*;
 FLOAT_VALUE: INTEGER_VALUE '.' DIGIT* ('f')?;
 DOUBLE_VALUE: INTEGER_VALUE '.' DIGIT* ('d')?;
-STRING_VALUE: '"' .+? '"';
+STRING_VALUE: '"' .+? '"' | '""';
 VARIABLE_NAME: LETTER (LETTER | DIGIT)*;
 
 WS: [ \t\r\n]+ -> skip;

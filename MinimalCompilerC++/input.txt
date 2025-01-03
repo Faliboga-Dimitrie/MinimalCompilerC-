@@ -1,16 +1,34 @@
-
-int b = 5;
-int c = 6;
-
-int test(int b, int c)
+int addIntegers(int first, int second)
 {
-	return b+c;
+	return first + second;
 }
 
-int a = test(b,c);
+float divideIntegers(int first, int second)
+{
+	if (second == 0)
+	{
+		return 0; //We don’t want to handle exceptions, so we’ll return 0 for simplicity
+	}
+	return first / second;
+}
+
+double globalVariable = 15.67; //Using global variables is bad practice
 
 int main()
 {
-	
+	int myFirstVariable = 17;
+	int mySecondVariable = 45;
+	int myThirdVariable = 3;
+
+	for (int i = 0; i < myThirdVariable; ++i)
+	{
+		myFirstVariable += i;
+	}
+
+	string myString = "ijhbgv";
+
+	myThirdVariable = addIntegers(myFirstVariable, mySecondVariable);
+	float myFloat = divideIntegers(myThirdVariable, myFirstVariable);
+	return 0;
 }
 

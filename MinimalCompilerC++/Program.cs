@@ -173,7 +173,7 @@ namespace MinimalCompiler
             var value = ParseValue(valueContext);
 
             // 4. Adaugă variabila și valoarea în rezultatul final
-            if(_result.Variables.Last().Value == null)
+            if (_result.Variables.Last().Value == null)
             {
                 _result.Variables.Last().Value = value;
             }
@@ -184,6 +184,7 @@ namespace MinimalCompiler
 
         public override ProgramData VisitFunction_declaration([Antlr4.Runtime.Misc.NotNull] MiniLanguageParser.Function_declarationContext context)
         {
+            int contor = 0;
             var functionName = context.VARIABLE_NAME().GetText();
             var returnType = FunctionParseType(context.return_type());
             var blockContext = context.block();
@@ -216,6 +217,13 @@ namespace MinimalCompiler
                         Name = paramName,
                         VariableType = paramType
                     });
+
+                    _result.Variables.Add(new ProgramData.Variable
+                    {
+                        Name = paramName,
+                        VariableType = paramType
+                    });
+                    contor++;
                 }
             }
 
@@ -230,6 +238,11 @@ namespace MinimalCompiler
                 VisitNew_line_block(blockNewLineContext);
 
             _result.CurrentFunction = "";
+            while (contor > 0)
+            {
+                _result.Variables.RemoveAt(_result.Variables.Count - 1);
+                contor--;
+            }
 
             return _result;
         }
@@ -248,12 +261,16 @@ namespace MinimalCompiler
                 ReturnType = returnType
             });
 
+            _result.CurrentFunction = functionName;
+
             if (blockContext != null)
             {
                 VisitBlock(blockContext);
             }
             else if (blockNewLineContext != null)
                 VisitNew_line_block(blockNewLineContext);
+
+            _result.CurrentFunction = "";
 
             return _result;
         }
@@ -285,11 +302,11 @@ namespace MinimalCompiler
         {
             var variableName = context.VARIABLE_NAME().GetText(); // Extrage numele variabilei
 
-            if(context.ADD_EQUALS() != null)
+            if (context.ADD_EQUALS() != null)
             {
                 _result.Variables.First(v => v.Name == variableName).Value += _result.Variables.First(v => v.Name == variableName).Value;
             }
-            else if(context.SUB_EQUALS() != null)
+            else if (context.SUB_EQUALS() != null)
             {
                 _result.Variables.First(v => v.Name == variableName).Value -= _result.Variables.First(v => v.Name == variableName).Value;
             }
@@ -390,7 +407,7 @@ namespace MinimalCompiler
 
         public override ProgramData VisitRelational_or_equality_expression([NotNull] MiniLanguageParser.Relational_or_equality_expressionContext context)
         {
-            if(context.additive_or_subtractive_expression().Length == 1)
+            if (context.additive_or_subtractive_expression().Length == 1)
             {
                 return VisitAdditive_or_subtractive_expression(context.additive_or_subtractive_expression()[0]);
             }
@@ -444,7 +461,7 @@ namespace MinimalCompiler
 
         public override ProgramData VisitAdditive_or_subtractive_expression([NotNull] MiniLanguageParser.Additive_or_subtractive_expressionContext context)
         {
-            if(context.multiplicative_expression().Length == 1)
+            if (context.multiplicative_expression().Length == 1)
             {
                 return VisitMultiplicative_expression(context.multiplicative_expression()[0]);
             }
@@ -503,7 +520,7 @@ namespace MinimalCompiler
 
         public override ProgramData VisitMultiplicative_expression([NotNull] MiniLanguageParser.Multiplicative_expressionContext context)
         {
-            if(context.unary_expression().Length == 1)
+            if (context.unary_expression().Length == 1)
             {
                 return VisitUnary_expression(context.unary_expression()[0]);
             }
@@ -524,7 +541,7 @@ namespace MinimalCompiler
 
                 if (context.ASTERISK() != null)
                 {
-                    _result.ExpresionValue = first* second;
+                    _result.ExpresionValue = first * second;
                     return _result;
                 }
                 else if (context.SLASH() != null)
@@ -543,7 +560,7 @@ namespace MinimalCompiler
         {
             ProgramData value = VisitPrimary_expression(context.primary_expression());
 
-            if(value.ExpresionValue is string && context.NOT() == null && context.MINUS() == null)
+            if (value.ExpresionValue is string && context.NOT() == null && context.MINUS() == null)
             {
                 return value;
             }
@@ -572,7 +589,7 @@ namespace MinimalCompiler
         {
             if (context.VARIABLE_NAME() != null)
             {
-                if(!_result.IsVariable(context.VARIABLE_NAME().GetText()))
+                if (!_result.IsVariable(context.VARIABLE_NAME().GetText()))
                 {
                     throw new Exception("Variable not found.");
                 }
@@ -581,7 +598,7 @@ namespace MinimalCompiler
             }
             else if (context.numeral_value() != null)
             {
-                if(context.numeral_value().INTEGER_VALUE() != null)
+                if (context.numeral_value().INTEGER_VALUE() != null)
                 {
                     _result.ExpresionValue = int.Parse(context.numeral_value().INTEGER_VALUE().GetText());
                     return _result;
@@ -603,7 +620,7 @@ namespace MinimalCompiler
             }
             else
             {
-                 _result.ExpresionValue = context.STRING_VALUE().GetText().Trim('"');
+                _result.ExpresionValue = context.STRING_VALUE().GetText().Trim('"');
                 return _result;
             }
         }
@@ -614,7 +631,7 @@ namespace MinimalCompiler
             var forBodyContext = context.block();
             var ForBodyContextNewLine = context.new_line_block();
 
-            if(forClauseContext != null)
+            if (forClauseContext != null)
             {
                 VisitFor_clause(forClauseContext);
             }
@@ -641,7 +658,7 @@ namespace MinimalCompiler
             var prevIncrementOrDecrement = context.prev_inccrement_or_decrement_no_semicolon();
             var postIncrementOrDecrement = context.post_inccrement_or_decrement_no_semicolon();
 
-            if(assignmentContext != null)
+            if (assignmentContext != null)
             {
                 VisitAssignment_no_semicolon(assignmentContext);
             }
@@ -669,7 +686,7 @@ namespace MinimalCompiler
         {
             if (context.assignment() != null)
             {
-               return VisitAssignment(context.assignment());
+                return VisitAssignment(context.assignment());
             }
             else if (context.assignment_op() != null)
             {
@@ -713,11 +730,15 @@ namespace MinimalCompiler
 
         public override ProgramData VisitReturn_statement([NotNull] MiniLanguageParser.Return_statementContext context)
         {
-            ProgramData hihihaha = VisitExpression(context.expression());
-            if (_result.GetFunction(_result.CurrentFunction) != null)
-            {
-                _result.CalculatedFunctionValues[_result.CurrentFunction] = hihihaha.ExpresionValue;
-            }
+            //if(_result.CurrentFunction != "")
+            //{
+            //    return _result;
+            //}
+            //ProgramData hihihaha = VisitExpression(context.expression());
+            //if (_result.GetFunction(_result.CurrentFunction) != null)
+            //{
+            //    _result.CalculatedFunctionValues[_result.CurrentFunction] = hihihaha.ExpresionValue;
+            //} Need to rethink this
             return _result;
         }
 
@@ -725,7 +746,7 @@ namespace MinimalCompiler
         {
             var ListOfStatements = context.statement();
 
-            if(ListOfStatements != null)
+            if (ListOfStatements != null)
             {
                 foreach (var statement in ListOfStatements)
                 {
@@ -738,7 +759,7 @@ namespace MinimalCompiler
 
         public override ProgramData VisitFunction_call([NotNull] MiniLanguageParser.Function_callContext context)
         {
-            if(_result.GetFunction(context.VARIABLE_NAME().GetText()) == null)
+            if (_result.GetFunction(context.VARIABLE_NAME().GetText()) == null)
             {
                 throw new Exception("Function not found.");
             }
@@ -788,7 +809,10 @@ namespace MinimalCompiler
             // Verifică dacă parametrii funcției se potrivesc cu argumentele apelului
             if (_result.CheckFunctionParameters())
             {
-                _result.GetVariable(_result.CurrentVariable).Value = _result.CalculatedFunctionValues[_result.CurrentFunction];
+                if (_result.CurrentFunction != "" && _result.CurrentVariable != "")
+                {
+                    _result.GetVariable(_result.CurrentVariable).Value = _result.CalculatedFunctionValues[_result.CurrentFunction];
+                }
                 _result.CurrentFunction = "";
                 return _result; // Parametrii se potrivesc, întoarce rezultatul
             }
@@ -884,7 +908,8 @@ namespace MinimalCompiler
         public override ProgramData VisitAssignment([NotNull] MiniLanguageParser.AssignmentContext context)
         {
             var variableName = context.VARIABLE_NAME().GetText(); // Extrage numele variabilei
-            var value = Visit(context.value()); // Apelează vizitatorul pentru valoare
+            _result.CurrentVariable = variableName;
+            var value = ParseValue(context.value()); // Apelează vizitatorul pentru valoare
 
             Console.WriteLine($"Assignment: {variableName} = {value}"); // Debugging: afișează valoarea atribuită
 
@@ -895,11 +920,11 @@ namespace MinimalCompiler
                 Value = value
             });
 
+            _result.CurrentVariable = "";
+
             return _result;
         }
-
     }
-
 
     class Program
     {
@@ -937,7 +962,7 @@ namespace MinimalCompiler
 
             // Setup lexer and parser
             MiniLanguageLexer lexer = SetupLexer(input);
-            //PrintLexems(lexer);
+            PrintLexems(lexer);
             MiniLanguageParser parser = SetupParser(lexer);
 
             // Parse input and use the visitor
