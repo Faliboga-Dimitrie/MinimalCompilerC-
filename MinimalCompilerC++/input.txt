@@ -25,6 +25,12 @@ int main()
 		myFirstVariable += i;
 	}
 
+	int j = 0; 
+
+	while (j < 10) {
+		j += 1;
+	}
+
 	string myString = "ijhbgv";
 
 	myThirdVariable = addIntegers(myFirstVariable, mySecondVariable);

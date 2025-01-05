@@ -834,8 +834,22 @@ namespace MinimalCompiler
 
         public override ProgramData VisitWhile_statement([NotNull] MiniLanguageParser.While_statementContext context)
         {
-            return base.VisitWhile_statement(context);
+            ProgramData condition = VisitExpression(context.expression());
+            if (!(condition.ExpresionValue is bool))
+            {
+                throw new Exception("Condition in while statement must evaluate to a boolean.");
+            }
+
+            while (condition.ExpresionValue)
+            {
+                VisitBlock(context.block());
+                condition = VisitExpression(context.expression());
+            }
+
+            return _result;
         }
+
+
 
         private ProgramData.ReturnType FunctionParseType(MiniLanguageParser.Return_typeContext context)
         {
