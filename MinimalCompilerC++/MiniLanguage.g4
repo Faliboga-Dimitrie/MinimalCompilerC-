@@ -37,7 +37,8 @@ statement:
 
 if_statement:
 	IF LPARAN expression RPARAN (COMMENT? new_line_block | block) (
-		ELSE (COMMENT? new_line_block | block)
+		( ELSE (COMMENT? new_line_block | block))
+		| ELSE if_statement
 	)?;
 
 while_statement:
@@ -47,11 +48,7 @@ while_statement:
 	);
 
 for_statement:
-	FOR LPARAN for_clause RPARAN (
-		COMMENT? new_line_block
-		| block
-	);
-for_clause: (
+	FOR LPARAN (
 		assignment_no_semicolon
 		| declaration_and_assignment_no_semicolon
 	)? SEMICOLON expression SEMICOLON (
@@ -60,7 +57,7 @@ for_clause: (
 			prev_inccrement_or_decrement_no_semicolon
 			| post_inccrement_or_decrement_no_semicolon
 		)
-	)?;
+	)? RPARAN (COMMENT? new_line_block | block);
 
 return_statement: RETURN expression SEMICOLON COMMENT?;
 

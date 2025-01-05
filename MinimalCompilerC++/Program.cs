@@ -38,8 +38,6 @@ namespace MinimalCompiler
 
         public string CurrentVariable { get; set; } = "";
 
-        public Dictionary<string, dynamic> CalculatedFunctionValues { get; set; } = new Dictionary<string, dynamic>();
-
         public class Function
         {
             public ReturnType ReturnType { get; set; }
@@ -47,6 +45,8 @@ namespace MinimalCompiler
             public List<Variable> Parameters { get; set; } = new List<Variable>();
 
             public List<Variable> LocalVariables { get; set; } = new List<Variable> { };
+
+            public bool currentFunction = false;
         }
 
         public List<Function> Functions { get; set; } = new List<Function>();
@@ -69,7 +69,19 @@ namespace MinimalCompiler
 
         public Function GetFunction(string name)
         {
-            return Functions.First(f => f.Name == name);
+            return Functions.FirstOrDefault(f => f.Name == name);
+        }
+
+        public Function GetFunctionCurrent(string name)
+        {
+            for (int i = 0; i < Functions.Count; i++)
+            {
+                if (Functions[i].Name == name && Functions[i].currentFunction == false)
+                {
+                    return Functions[i];
+                }
+            }
+            return null;
         }
 
         public bool CheckFunctionParameters()
@@ -131,6 +143,12 @@ namespace MinimalCompiler
         public override ProgramData VisitDeclaration([Antlr4.Runtime.Misc.NotNull] MiniLanguageParser.DeclarationContext context)
         {
             var variableName = context.VARIABLE_NAME().GetText();
+
+            if(_result.IsVariable(variableName))
+            {
+                throw new Exception("Variable already exists.");
+            }
+
             var variableType = ParseType(context.type());
 
             _result.Variables.Add(new ProgramData.Variable
@@ -138,6 +156,29 @@ namespace MinimalCompiler
                 Name = variableName,
                 VariableType = variableType
             });
+
+            if(_result.GetFunction("main") == null)
+            {
+                if(variableType == ProgramData.Type.String)
+                {
+                    _result.Variables.Last().Value = "";
+                }
+                else
+                {
+                    _result.Variables.Last().Value = 0;
+                }
+            }
+
+            if (_result.CurrentFunction != "")
+            {
+                _result.GetFunction(_result.CurrentFunction).LocalVariables.Add(new ProgramData.Variable
+                {
+                    Name = variableName,
+                    VariableType = variableType
+                });
+
+                _result.Variables.Last().FromFunction = _result.CurrentFunction;
+            }
 
             return _result;
         }
@@ -159,6 +200,12 @@ namespace MinimalCompiler
 
             // 2. Preia numele variabilei
             var variableName = context.VARIABLE_NAME().GetText();
+
+            if(_result.IsVariable(variableName))
+            {
+                throw new Exception("Variable already exists.");
+            }
+
             _result.CurrentVariable = variableName;
 
             _result.Variables.Add(new ProgramData.Variable
@@ -178,6 +225,18 @@ namespace MinimalCompiler
                 _result.Variables.Last().Value = value;
             }
 
+            if(_result.CurrentFunction != "")
+            {
+                _result.GetFunction(_result.CurrentFunction).LocalVariables.Add(new ProgramData.Variable
+                {
+                    Name = variableName,
+                    VariableType = variableType,
+                    Value = value
+                });
+
+                _result.Variables.Last().FromFunction = _result.CurrentFunction;
+            }
+
             _result.CurrentVariable = "";
             return _result;
         }
@@ -186,6 +245,17 @@ namespace MinimalCompiler
         {
             int contor = 0;
             var functionName = context.VARIABLE_NAME().GetText();
+
+            if(functionName == null)
+            {
+                throw new Exception("Function name not found.");
+            }
+
+            if(functionName == "main")
+            {
+                throw new Exception("Function name cannot be 'main'.");
+            }
+
             var returnType = FunctionParseType(context.return_type());
             var blockContext = context.block();
             var blockNewLineContext = context.new_line_block();
@@ -218,16 +288,85 @@ namespace MinimalCompiler
                         VariableType = paramType
                     });
 
+                    if (_result.GetFunctionCurrent("main") == null)
+                    {
+                        if (paramType == ProgramData.Type.String)
+                        {
+                            _result.Functions.Last().Parameters.Last().Value = "";
+                        }
+                        else
+                        {
+                            _result.Functions.Last().Parameters.Last().Value = 0;
+                        }
+                    }
+
+                    _result.Functions.Last().LocalVariables.Add(new ProgramData.Variable
+                    {
+                        Name = paramName,
+                        VariableType = paramType
+                    });
+
+                    if (_result.GetFunctionCurrent("main") == null)
+                    {
+                        if (paramType == ProgramData.Type.String)
+                        {
+                            _result.Functions.Last().LocalVariables.Last().Value = "";
+                        }
+                        else
+                        {
+                            _result.Functions.Last().LocalVariables.Last().Value = 0;
+                        }
+                    }
+
                     _result.Variables.Add(new ProgramData.Variable
                     {
                         Name = paramName,
                         VariableType = paramType
                     });
+
+                    if (_result.GetFunctionCurrent("main") == null)
+                    {
+                        if (paramType == ProgramData.Type.String)
+                        {
+                            _result.Variables.Last().Value = "";
+                        }
+                        else
+                        {
+                            _result.Variables.Last().Value = 0;
+                        }
+                    }
+
                     contor++;
                 }
             }
 
-            _result.CalculatedFunctionValues.Add(functionName, null);
+            _result.Functions.Last().currentFunction = true;
+            int index = 0;
+            bool sameSignature = false;
+
+            if (_result.GetFunctionCurrent(functionName) != null)
+            {
+                ProgramData.Function function = _result.GetFunction(functionName);
+                if (function.ReturnType == returnType && function.Parameters.Count == contor)
+                {
+                    sameSignature = true;
+                    foreach (var variable in function.Parameters)
+                    {
+                        if(variable.VariableType != _result.Functions.Last().Parameters[index].VariableType)
+                        {
+                            sameSignature = false;
+                        }
+
+                        index++;
+                    }
+                }
+            }
+
+            if(sameSignature)
+            {
+                throw new Exception("Function already exists.");
+            }
+
             _result.CurrentFunction = functionName;
 
             if (blockContext != null)
@@ -237,13 +376,14 @@ namespace MinimalCompiler
             else if (blockNewLineContext != null)
                 VisitNew_line_block(blockNewLineContext);
 
-            _result.CurrentFunction = "";
             while (contor > 0)
             {
                 _result.Variables.RemoveAt(_result.Variables.Count - 1);
                 contor--;
             }
 
+            _result.CurrentFunction = "";
+            _result.Functions.Last().currentFunction = false;
             return _result;
         }
 
@@ -283,48 +423,88 @@ namespace MinimalCompiler
             // 2. Preia numele variabilei
             var variableName = context.VARIABLE_NAME().GetText();
 
+            if (_result.IsVariable(variableName))
+            {
+                throw new Exception("Variable already exists.");
+            }
+
+            _result.CurrentVariable = variableName;
+
+            _result.Variables.Add(new ProgramData.Variable
+            {
+                Name = variableName,
+                VariableType = variableType,
+                Value = null
+            });
+
             // 3. Preia valoarea atribuită variabilei
             var valueContext = context.value();
             var value = ParseValue(valueContext);
 
             // 4. Adaugă variabila și valoarea în rezultatul final
-            _result.Variables.Add(new ProgramData.Variable
+            if (_result.Variables.Last().Value == null)
             {
-                Name = variableName,
-                VariableType = variableType,
-                Value = value
-            });
+                _result.Variables.Last().Value = value;
+            }
 
+            if (_result.CurrentFunction != "")
+            {
+                _result.GetFunction(_result.CurrentFunction).LocalVariables.Add(new ProgramData.Variable
+                {
+                    Name = variableName,
+                    VariableType = variableType,
+                    Value = value
+                });
+
+                _result.Variables.Last().FromFunction = _result.CurrentFunction;
+            }
+
+            _result.CurrentVariable = "";
             return _result;
         }
 
         public override ProgramData VisitAssignment_op_no_semicolon([NotNull] MiniLanguageParser.Assignment_op_no_semicolonContext context)
         {
-            var variableName = context.VARIABLE_NAME().GetText(); // Extrage numele variabilei
+            if (_result.GetVariable(context.VARIABLE_NAME().GetText()) == null)
+            {
+                throw new Exception("Variable not found.");
+            }
+
+            var variableName = _result.GetVariable(context.VARIABLE_NAME().GetText()).Name;
+            if (context.value().VARIABLE_NAME() != null)
+                _result.CurrentVariable = context.value().VARIABLE_NAME().GetText();
+            else
+                _result.CurrentVariable = variableName;
 
             if (context.ADD_EQUALS() != null)
             {
-                _result.Variables.First(v => v.Name == variableName).Value += _result.Variables.First(v => v.Name == variableName).Value;
+                _result.Variables.First(v => v.Name == variableName).Value += ParseValue(context.value());
             }
             else if (context.SUB_EQUALS() != null)
             {
-                _result.Variables.First(v => v.Name == variableName).Value -= _result.Variables.First(v => v.Name == variableName).Value;
+                _result.Variables.First(v => v.Name == variableName).Value -= ParseValue(context.value());
             }
             else if (context.MUL_EQUALS() != null)
             {
-                _result.Variables.First(v => v.Name == variableName).Value *= _result.Variables.First(v => v.Name == variableName).Value;
+                _result.Variables.First(v => v.Name == variableName).Value *= ParseValue(context.value());
             }
             else if (context.DIV_EQUALS() != null)
             {
-                _result.Variables.First(v => v.Name == variableName).Value /= _result.Variables.First(v => v.Name == variableName).Value;
+                _result.Variables.First(v => v.Name == variableName).Value /= ParseValue(context.value());
             }
 
+            _result.CurrentVariable = "";
             return _result;
         }
 
         public override ProgramData VisitPost_inccrement_or_decrement_no_semicolon([NotNull] MiniLanguageParser.Post_inccrement_or_decrement_no_semicolonContext context)
         {
             var variableName = context.VARIABLE_NAME().GetText(); // Extrage numele variabilei
+
+            if(!_result.IsVariable(variableName))
+            {
+                throw new Exception("Variable not found.");
+            }
 
             var newResult = _result;
 
@@ -349,6 +529,11 @@ namespace MinimalCompiler
         public override ProgramData VisitPrev_inccrement_or_decrement_no_semicolon([NotNull] MiniLanguageParser.Prev_inccrement_or_decrement_no_semicolonContext context)
         {
             var variableName = context.VARIABLE_NAME().GetText(); // Extrage numele variabilei
+
+            if(!_result.IsVariable(variableName))
+            {
+                throw new Exception("Variable not found.");
+            }
 
             if (context.INC() != null)
             {
@@ -384,7 +569,12 @@ namespace MinimalCompiler
                 ProgramData right = VisitRelational_or_equality_expression(context.relational_or_equality_expression()[1]);
                 dynamic? second = right.ExpresionValue;
 
-                if (left.ExpresionValue is string || right.ExpresionValue is string)
+                if(first == null || second == null)
+                {
+                    throw new Exception("Expression values cannot be null.");
+                }
+
+                if (first is string || second is string)
                 {
                     throw new Exception("A string can't be used in a logical operation.");
                 }
@@ -418,6 +608,11 @@ namespace MinimalCompiler
                 ProgramData right = VisitAdditive_or_subtractive_expression(context.additive_or_subtractive_expression()[1]);
                 dynamic? second = right.ExpresionValue;
 
+                if(first == null || second == null)
+                {
+                    throw new Exception("Expression values cannot be null.");
+                }
+
                 if (context.EQUAL() != null)
                 {
                     _result.ExpresionValue = first == second;
@@ -428,7 +623,7 @@ namespace MinimalCompiler
                     _result.ExpresionValue = first != second;
                     return _result;
                 }
-                else if (left.ExpresionValue is string || right.ExpresionValue is string)
+                else if (first is string || second is string)
                 {
                     throw new Exception("It's not a native operation.Only == and != are.");
                 }
@@ -471,14 +666,19 @@ namespace MinimalCompiler
             ProgramData right = VisitMultiplicative_expression(context.multiplicative_expression()[1]);
             dynamic? second2 = right.ExpresionValue;
 
+            if(first2 == null || second2 == null)
+            {
+                throw new Exception("Expression values cannot be null.");
+            }
+
             if (context.PLUS() != null)
             {
-                if (left.ExpresionValue is string || right.ExpresionValue is string)
+                if (first2 is string || second2 is string)
                 {
-                    if (left.ExpresionValue.ToString() != null && right.ExpresionValue.ToString() != null)
+                    if (first2.ToString() != null && second2.ExpresionValue.ToString() != null)
                     {
-                        var first = left.ExpresionValue.ToString();
-                        var second = right.ExpresionValue.ToString();
+                        var first = first2.ExpresionValue.ToString();
+                        var second = second2.ExpresionValue.ToString();
                         if (first is string && second is string)
                         {
                             _result.ExpresionValue = first + second;
@@ -504,7 +704,7 @@ namespace MinimalCompiler
             }
             else if (context.MINUS() != null)
             {
-                if (left.ExpresionValue is string || right.ExpresionValue is string)
+                if (first2 is string || second2 is string)
                 {
                     throw new Exception("A string can't be subtracted.");
                 }
@@ -531,7 +731,12 @@ namespace MinimalCompiler
                 ProgramData right = VisitUnary_expression(context.unary_expression()[1]);
                 dynamic? second = right.ExpresionValue;
 
-                if (left.ExpresionValue is string || right.ExpresionValue is string)
+                if(first == null || second == null)
+                {
+                    throw new Exception("Expression values cannot be null.");
+                }
+
+                if (first is string || second is string)
                 {
                     if (context.ASTERISK() != null || context.SLASH() != null)
                     {
@@ -627,30 +832,6 @@ namespace MinimalCompiler
 
         public override ProgramData VisitFor_statement([NotNull] MiniLanguageParser.For_statementContext context)
         {
-            var forClauseContext = context.for_clause();
-            var forBodyContext = context.block();
-            var ForBodyContextNewLine = context.new_line_block();
-
-            if (forClauseContext != null)
-            {
-                VisitFor_clause(forClauseContext);
-            }
-
-            if (forBodyContext != null)
-            {
-                VisitBlock(forBodyContext);
-            }
-
-            if (ForBodyContextNewLine != null)
-            {
-                VisitNew_line_block(ForBodyContextNewLine);
-            }
-
-            return _result;
-        }
-
-        public override ProgramData VisitFor_clause([NotNull] MiniLanguageParser.For_clauseContext context)
-        {
             var assignmentContext = context.assignment_no_semicolon();
             var assignmentContextDeclaration = context.declaration_and_assignment_no_semicolon();
             var expressionContext = context.expression();
@@ -658,27 +839,91 @@ namespace MinimalCompiler
             var prevIncrementOrDecrement = context.prev_inccrement_or_decrement_no_semicolon();
             var postIncrementOrDecrement = context.post_inccrement_or_decrement_no_semicolon();
 
+            bool hasLocalVariables = false;
+
             if (assignmentContext != null)
             {
                 VisitAssignment_no_semicolon(assignmentContext);
+                hasLocalVariables = true;
             }
             else if (assignmentContextDeclaration != null)
             {
                 VisitDeclaration_and_assignment_no_semicolon(assignmentContextDeclaration);
-            }
-            else if (expressionContext != null)
-            {
-                VisitExpression(expressionContext);
-            }
-            else if (assignmentOperation != null)
-            {
-                VisitAssignment_op_no_semicolon(assignmentOperation);
-            }
-            else if (prevIncrementOrDecrement != null)
-            {
-                VisitPrev_inccrement_or_decrement_no_semicolon(prevIncrementOrDecrement);
+                hasLocalVariables = true;
             }
 
+            ProgramData forClause = VisitExpression(expressionContext);
+
+            if (!(forClause.ExpresionValue is bool))
+            {
+                throw new Exception("For clause must evaluate to a boolean.");
+            }
+
+            while ((bool)forClause.ExpresionValue)
+            {
+                if (context.block() != null)
+                {
+                    VisitBlock(context.block());
+                }
+                else if (context.new_line_block() != null)
+                {
+                    VisitNew_line_block(context.new_line_block());
+                }
+
+                if (assignmentOperation != null)
+                {
+                    VisitAssignment_op_no_semicolon(assignmentOperation);
+                }
+                else if (postIncrementOrDecrement != null)
+                {
+                    VisitPost_inccrement_or_decrement_no_semicolon(postIncrementOrDecrement);
+                }
+                else if (prevIncrementOrDecrement != null)
+                {
+                    VisitPrev_inccrement_or_decrement_no_semicolon(prevIncrementOrDecrement);
+                }
+                forClause = VisitExpression(expressionContext);
+            }
+
+            if(hasLocalVariables)
+            {
+                _result.Variables.RemoveAt(_result.Variables.Count - 1);
+            }
+
+            return _result;
+        }
+
+        public override ProgramData VisitAssignment_op([NotNull] MiniLanguageParser.Assignment_opContext context)
+        {
+            if(_result.GetVariable(context.VARIABLE_NAME().GetText()) == null)
+            {
+                throw new Exception("Variable not found.");
+            }
+
+            var variableName = _result.GetVariable(context.VARIABLE_NAME().GetText()).Name;
+            if(context.value().VARIABLE_NAME() != null)
+                _result.CurrentVariable = context.value().VARIABLE_NAME().GetText();
+            else
+                _result.CurrentVariable = variableName;
+
+            if (context.ADD_EQUALS() != null)
+            {
+                _result.Variables.First(v => v.Name == variableName).Value += ParseValue(context.value());
+            }
+            else if (context.SUB_EQUALS() != null)
+            {
+                _result.Variables.First(v => v.Name == variableName).Value -= ParseValue(context.value());
+            }
+            else if (context.MUL_EQUALS() != null)
+            {
+                _result.Variables.First(v => v.Name == variableName).Value *= ParseValue(context.value());
+            }
+            else if (context.DIV_EQUALS() != null)
+            {
+                _result.Variables.First(v => v.Name == variableName).Value /= ParseValue(context.value());
+            }
+
+            _result.CurrentVariable = "";
             return _result;
         }
 
@@ -764,7 +1009,8 @@ namespace MinimalCompiler
                 throw new Exception("Function not found.");
             }
             _result.CurrentFunction = context.VARIABLE_NAME().GetText();
-            return VisitArguments(context.arguments());
+            //return VisitArguments(context.arguments());
+            return _result;
         }
 
         public override ProgramData VisitFunction_call_no_semicolon([NotNull] MiniLanguageParser.Function_call_no_semicolonContext context)
@@ -773,8 +1019,8 @@ namespace MinimalCompiler
             {
                 throw new Exception("Function not found.");
             }
-            _result.CurrentFunction = context.VARIABLE_NAME().GetText();
-            return VisitArguments(context.arguments());
+            //_result.CurrentFunction = context.VARIABLE_NAME().GetText();
+            return _result;
         }
 
         public override ProgramData VisitArguments([NotNull] MiniLanguageParser.ArgumentsContext context)
@@ -809,11 +1055,6 @@ namespace MinimalCompiler
             // Verifică dacă parametrii funcției se potrivesc cu argumentele apelului
             if (_result.CheckFunctionParameters())
             {
-                if (_result.CurrentFunction != "" && _result.CurrentVariable != "")
-                {
-                    _result.GetVariable(_result.CurrentVariable).Value = _result.CalculatedFunctionValues[_result.CurrentFunction];
-                }
-                _result.CurrentFunction = "";
                 return _result; // Parametrii se potrivesc, întoarce rezultatul
             }
             else
@@ -862,8 +1103,6 @@ namespace MinimalCompiler
             return _result;
         }
 
-
-
         public override ProgramData VisitWhile_statement([NotNull] MiniLanguageParser.While_statementContext context)
         {
             ProgramData condition = VisitExpression(context.expression());
@@ -881,8 +1120,6 @@ namespace MinimalCompiler
             return _result;
         }
 
-
-
         private ProgramData.ReturnType FunctionParseType(MiniLanguageParser.Return_typeContext context)
         {
             if (context.VOID_TYPE() != null) return ProgramData.ReturnType.Void;
@@ -898,6 +1135,10 @@ namespace MinimalCompiler
         {
             if (valueContext.STRING_VALUE() != null)
             {
+                if(_result.GetVariable(_result.CurrentVariable).VariableType != ProgramData.Type.String)
+                {
+                    throw new Exception("Variable is not a string.");
+                }
                 return valueContext.STRING_VALUE().GetText().Trim('"');
             }
             else if (valueContext.expression() != null)
@@ -912,21 +1153,49 @@ namespace MinimalCompiler
                     throw new Exception("Unknown expression value.");
                 }
             }
+            else if (valueContext.VARIABLE_NAME() != null)
+            {
+                if (!_result.IsVariable(valueContext.VARIABLE_NAME().GetText()))
+                {
+                    throw new Exception($"Variable '{valueContext.VARIABLE_NAME().GetText()}' not found.");
+                }
+
+                ProgramData.Type variableType = _result.GetVariable(valueContext.VARIABLE_NAME().GetText()).VariableType;
+                ProgramData.Type currentVariableType = _result.GetVariable(_result.CurrentVariable).VariableType;
+
+                if (variableType == ProgramData.Type.String && currentVariableType != ProgramData.Type.String ||
+                    variableType != ProgramData.Type.String && currentVariableType == ProgramData.Type.String)
+                {
+                    throw new Exception($"Type required {currentVariableType}; Type found {variableType}");
+                }
+
+                return _result.GetVariable(valueContext.VARIABLE_NAME().GetText()).Value;
+            }
             else if (valueContext.function_call_no_semicolon() != null)
             {
                 return VisitFunction_call_no_semicolon(valueContext.function_call_no_semicolon());
             }
             else if (valueContext.numeral_value().FLOAT_VALUE() != null)
             {
+                ProgramData.Type currentVariableType = _result.GetVariable(_result.CurrentVariable).VariableType;
+
+                if (currentVariableType == ProgramData.Type.String)
+                {
+                    throw new Exception($"Type required {currentVariableType}; Type found {ProgramData.Type.String}");
+                }
+
                 return float.Parse(valueContext.numeral_value().FLOAT_VALUE().GetText());
             }
             else if (valueContext.numeral_value().INTEGER_VALUE() != null)
             {
+                ProgramData.Type currentVariableType = _result.GetVariable(_result.CurrentVariable).VariableType;
+
+                if (currentVariableType == ProgramData.Type.String)
+                {
+                    throw new Exception($"Type required {currentVariableType}; Type found {ProgramData.Type.String}");
+                }
+
                 return int.Parse(valueContext.numeral_value().INTEGER_VALUE().GetText());
-            }
-            else if (valueContext.VARIABLE_NAME() != null)
-            {
-                return valueContext.VARIABLE_NAME().GetText();
             }
             else
             {
@@ -937,16 +1206,13 @@ namespace MinimalCompiler
         public override ProgramData VisitAssignment_no_semicolon([NotNull] MiniLanguageParser.Assignment_no_semicolonContext context)
         {
             var variableName = context.VARIABLE_NAME().GetText(); // Extrage numele variabilei
+            if (variableName == null)
+            {
+                throw new Exception("Variable not found.");
+            }
             var value = Visit(context.value()); // Apelează vizitatorul pentru valoare
 
-            Console.WriteLine($"Assignment: {variableName} = {value}"); // Debugging: afișează valoarea atribuită
-
-            // Crează obiectul de variabilă și adaugă-l
-            _result.Variables.Add(new ProgramData.Variable
-            {
-                Name = variableName,
-                Value = value
-            });
+            _result.GetVariable(variableName).Value = value.ExpresionValue;
 
             return _result;
         }
@@ -954,19 +1220,13 @@ namespace MinimalCompiler
         public override ProgramData VisitAssignment([NotNull] MiniLanguageParser.AssignmentContext context)
         {
             var variableName = context.VARIABLE_NAME().GetText(); // Extrage numele variabilei
-            _result.CurrentVariable = variableName;
-            var value = ParseValue(context.value()); // Apelează vizitatorul pentru valoare
-
-            Console.WriteLine($"Assignment: {variableName} = {value}"); // Debugging: afișează valoarea atribuită
-
-            // Crează obiectul de variabilă și adaugă-l
-            _result.Variables.Add(new ProgramData.Variable
+            if (variableName == null)
             {
-                Name = variableName,
-                Value = value
-            });
+                throw new Exception("Variable not found.");
+            }
+            var value = Visit(context.value()); // Apelează vizitatorul pentru valoare
 
-            _result.CurrentVariable = "";
+            _result.GetVariable(variableName).Value = value.ExpresionValue;
 
             return _result;
         }
@@ -993,13 +1253,18 @@ namespace MinimalCompiler
             IList<IToken> tokens = lexer.GetAllTokens();
             lexer.Reset();
 
-            Console.WriteLine("Lexems:");
+            Console.WriteLine("=== Lexems ===");
+            Console.WriteLine("{0,-20} {1}", "Type", "Text");
+            Console.WriteLine(new string('-', 40));
+
             foreach (IToken token in tokens)
             {
-                Console.WriteLine($"Type: " +
-                    $"{lexer.Vocabulary.GetSymbolicName(token.Type)} -> " +
-                    $"{token.Text}");
+                Console.WriteLine("{0,-20} {1}",
+                    lexer.Vocabulary.GetSymbolicName(token.Type),
+                    token.Text);
             }
+
+            Console.WriteLine(new string('=', 40));
         }
 
         static void Main(string[] args)
@@ -1021,26 +1286,69 @@ namespace MinimalCompiler
                 return;
             }
 
-            // Afiseaza variabilele colectate
-            Console.WriteLine("Variables:");
-            foreach (var variable in programData.Variables)
+            Console.WriteLine("=== Variables from main or global ===");
+            if (programData.Variables.Count > 0)
             {
-                Console.WriteLine($"Type: {variable.VariableType}, Name: {variable.Name}, Value: {(variable.Value != null ? variable.Value : "none")}");
+                foreach (var variable in programData.Variables)
+                {
+                    Console.WriteLine($"- Type: {variable.VariableType}");
+                    Console.WriteLine($"  Name: {variable.Name}");
+                    if(variable.FromFunction != "")
+                    {
+                        Console.WriteLine($"  From function: {variable.FromFunction}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"  Global Variable");
+                    }
+                    Console.WriteLine($"  Value: {(variable.Value != null ? variable.Value : "none")}");
+                }
+            }
+            else
+            {
+                Console.WriteLine("No variables collected.");
             }
 
-            // Afiseaza functiile colectate
-            Console.WriteLine("Functions:");
-            foreach (var function in programData.Functions)
+            Console.WriteLine("\n=== Functions ===");
+            if (programData.Functions.Count > 0)
             {
-                Console.WriteLine($"Return type: {function.ReturnType}, Name: {function.Name}");
-                Console.WriteLine("Parameters:");
-                foreach (var parameter in function.Parameters)
+                foreach (var function in programData.Functions)
                 {
-                    Console.WriteLine($"Type: {parameter.VariableType}, Name: {parameter.Name}");
+                    Console.WriteLine($"\nFunction: {function.Name}");
+                    Console.WriteLine($"  Return type: {function.ReturnType}");
+
+                    Console.WriteLine("  Parameters:");
+                    if (function.Parameters.Count > 0)
+                    {
+                        foreach (var parameter in function.Parameters)
+                        {
+                            Console.WriteLine($"    - Type: {parameter.VariableType}, Name: {parameter.Name}");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("    None");
+                    }
+
+                    Console.WriteLine("  Local variables:");
+                    if (function.LocalVariables.Count > 0)
+                    {
+                        foreach (var localVariable in function.LocalVariables)
+                        {
+                            Console.WriteLine($"    - Type: {localVariable.VariableType}, Name: {localVariable.Name}");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("    None");
+                    }
                 }
-                //Console.WriteLine("Local variable:");
-                //foreach(var parameter in function)
             }
+            else
+            {
+                Console.WriteLine("No functions collected.");
+            }
+
         }
 
     }

@@ -3,6 +3,11 @@ int addIntegers(int first, int second)
 	return first + second;
 }
 
+int addIntegers(int first, float second)
+{
+	return first + second;
+}
+
 float divideIntegers(int first, int second)
 {
 	if (second == 0)

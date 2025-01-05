@@ -92,12 +92,6 @@ public interface IMiniLanguageVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitFor_statement([NotNull] MiniLanguageParser.For_statementContext context);
 	/// <summary>
-	/// Visit a parse tree produced by <see cref="MiniLanguageParser.for_clause"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitFor_clause([NotNull] MiniLanguageParser.For_clauseContext context);
-	/// <summary>
 	/// Visit a parse tree produced by <see cref="MiniLanguageParser.return_statement"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
