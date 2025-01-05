@@ -31,6 +31,19 @@ int main()
 		j += 1;
 	}
 
+	if (myFirstVariable > mySecondVariable)
+	{
+		mySecondVariable = 65;
+	}
+	else if (myFirstVariable > mySecondVariable)
+	{
+		mySecondVariable = 35;
+	}
+	else
+	{
+		mySecondVariable = myFirstVariable;
+	}
+
 	string myString = "ijhbgv";
 
 	myThirdVariable = addIntegers(myFirstVariable, mySecondVariable);

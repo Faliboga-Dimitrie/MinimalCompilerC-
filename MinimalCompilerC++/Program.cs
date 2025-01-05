@@ -829,8 +829,40 @@ namespace MinimalCompiler
 
         public override ProgramData VisitIf_statement([NotNull] MiniLanguageParser.If_statementContext context)
         {
-            return base.VisitIf_statement(context);
+            
+            ProgramData condition = VisitExpression(context.expression());
+            if (!(condition.ExpresionValue is bool))
+            {
+                throw new Exception("Condition in if statement must evaluate to a boolean.");
+            }
+
+            if ((bool)condition.ExpresionValue)
+            {
+                if (context.new_line_block().Length > 0)
+                {
+                    VisitNew_line_block(context.new_line_block(0));
+                }
+                else if (context.block().Length > 0)
+                {
+                    VisitBlock(context.block(0));
+                }
+            }
+            else if (context.ELSE() != null)
+            {
+                if (context.new_line_block().Length > 1)
+                {
+                    VisitNew_line_block(context.new_line_block(1));
+                }
+                else if (context.block().Length > 1)
+                {
+                    VisitBlock(context.block(1));
+                }
+            }
+
+            return _result;
         }
+
+
 
         public override ProgramData VisitWhile_statement([NotNull] MiniLanguageParser.While_statementContext context)
         {
