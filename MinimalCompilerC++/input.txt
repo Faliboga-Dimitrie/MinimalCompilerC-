@@ -17,7 +17,7 @@ float divideIntegers(int first, int second)
 	return first / second;
 }
 
-double globalVariable = 15.67; //Using global variables is bad practice
+double globalVariable = 15.67 //Using global variables is bad practice
 
 int main()
 {

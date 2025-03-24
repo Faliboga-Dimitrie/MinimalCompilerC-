@@ -5,137 +5,16 @@ using System.Xml.Linq;
 
 namespace MinimalCompiler
 {
-    public class ProgramData
-    {
-        public enum Type
-        {
-            Int,
-            Float,
-            Double,
-            String
-        }
-
-        public enum ReturnType
-        {
-            Int,
-            Float,
-            Double,
-            String,
-            Void
-        }
-
-        public class Variable
-        {
-            
-            public Type VariableType { get; set; }
-            public dynamic? Value { get; set; }
-
-            public string Name { get; set; } = string.Empty;
-
-            public string FromFunction { get; set; } = "";
-        }
-        public List<Variable> Variables { get; set; } = new List<Variable>();
-
-        public string CurrentVariable { get; set; } = "";
-
-        public class Function
-        {
-            public ReturnType ReturnType { get; set; }
-            public string Name { get; set; } = string.Empty;
-            public List<Variable> Parameters { get; set; } = new List<Variable>();
-
-            public List<Variable> LocalVariables { get; set; } = new List<Variable> { };
-
-            public bool currentFunction = false;
-        }
-
-        public List<Function> Functions { get; set; } = new List<Function>();
-
-        public string CurrentFunction { get; set; } = "";
-
-        public List<Variable> FunctionCallArgumentsExpressions { get; set; } = new List<Variable>();
-
-        public dynamic? ExpresionValue { get; set; }
-
-        public bool IsVariable(string name)
-        {
-            return Variables.Any(v => v.Name == name);
-        }
-        
-        public Variable GetVariable(string name)
-        {
-            return Variables.First(v => v.Name == name);
-        }
-
-        public Function GetFunction(string name)
-        {
-            return Functions.FirstOrDefault(f => f.Name == name);
-        }
-
-        public Function GetFunctionCurrent(string name)
-        {
-            for (int i = 0; i < Functions.Count; i++)
-            {
-                if (Functions[i].Name == name && Functions[i].currentFunction == false)
-                {
-                    return Functions[i];
-                }
-            }
-            return null;
-        }
-
-        public bool CheckFunctionParameters()
-        {
-            if (FunctionCallArgumentsExpressions.Count == 0)
-            {
-                return false;
-            }
-
-            Function function1 = GetFunction(CurrentFunction);
-
-            if (function1 == null)
-            {
-                return false;
-            }
-
-            for(int i = 0; i < function1.Parameters.Count; i++)
-            {
-                if (function1.Parameters[i].VariableType == Type.Int && FunctionCallArgumentsExpressions[i].VariableType == Type.Int)
-                {
-                    continue;
-                }
-                else if (function1.Parameters[i].VariableType == Type.Float && FunctionCallArgumentsExpressions[i].VariableType == Type.Float)
-                {
-                    continue;
-                }
-                else if (function1.Parameters[i].VariableType == Type.Double && FunctionCallArgumentsExpressions[i].VariableType == Type.Double)
-                {
-                    continue;
-                }
-                else if (function1.Parameters[i].VariableType == Type.String && FunctionCallArgumentsExpressions[i].VariableType == Type.String)
-                {
-                    continue;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-    }
-
     public class MiniLanguageVisitor : MiniLanguageBaseVisitor<ProgramData>
     {
         private ProgramData _result = new ProgramData();
 
         public override ProgramData VisitProgram([Antlr4.Runtime.Misc.NotNull] MiniLanguageParser.ProgramContext context)
         {
-            // Vizitează fiecare declarație sau altă secțiune din program
+            // Visits each section or declaration of the program
             foreach (var statement in context.children)
             {
-                Visit(statement);  // Vizitează fiecare copil
+                Visit(statement);  // Visits each child of the program
             }
             return _result;
         }
@@ -195,10 +74,10 @@ namespace MinimalCompiler
 
         public override ProgramData VisitDeclaration_and_assignment([Antlr4.Runtime.Misc.NotNull] MiniLanguageParser.Declaration_and_assignmentContext context)
         {
-            // 1. Preia tipul variabilei
+            // 1. Get variable type
             var variableType = ParseType(context.type());
 
-            // 2. Preia numele variabilei
+            // 2. Get variable name
             var variableName = context.VARIABLE_NAME().GetText();
 
             if(_result.IsVariable(variableName))
@@ -215,11 +94,11 @@ namespace MinimalCompiler
                 Value = null
             });
 
-            // 3. Preia valoarea atribuită variabilei
+            // 3. Get value assigned to variable
             var valueContext = context.value();
             var value = ParseValue(valueContext);
 
-            // 4. Adaugă variabila și valoarea în rezultatul final
+            // 4. Add variable and value to final result
             if (_result.Variables.Last().Value == null)
             {
                 _result.Variables.Last().Value = value;
@@ -260,28 +139,28 @@ namespace MinimalCompiler
             var blockContext = context.block();
             var blockNewLineContext = context.new_line_block();
 
-            // Adaugă funcția la lista de funcții
+            // Add function to list of functions
             _result.Functions.Add(new ProgramData.Function
             {
                 Name = functionName,
                 ReturnType = returnType
             });
 
-            // Vizitează parametrii
+            // Visit parameters
             var parametersContext = context.parameters();
             if (parametersContext != null)
             {
-                // Iterăm prin parametri
+                // Go through each parameter
                 for (int i = 0; i < parametersContext.type().Count(); i++)
                 {
-                    var paramTypeContext = parametersContext.type()[i]; // Tipul parametrului
-                    var paramNameContext = parametersContext.VARIABLE_NAME()[i]; // Numele parametrului
+                    var paramTypeContext = parametersContext.type()[i]; // Parameter type
+                    var paramNameContext = parametersContext.VARIABLE_NAME()[i]; // Parameter name
 
-                    // Accesăm corect tipul parametrului
+                    // Access the type and name of the parameter
                     var paramType = ParseType(paramTypeContext);
                     var paramName = paramNameContext.GetText();
 
-                    // Adăugăm parametrul la funcție
+                    // Add parameter to the function
                     _result.Functions.Last().Parameters.Add(new ProgramData.Variable
                     {
                         Name = paramName,
@@ -394,7 +273,7 @@ namespace MinimalCompiler
             var blockContext = context.block();
             var blockNewLineContext = context.new_line_block();
 
-            // Adaugă funcția la lista de funcții
+            // Add function to list of functions
             _result.Functions.Add(new ProgramData.Function
             {
                 Name = functionName,
@@ -417,10 +296,10 @@ namespace MinimalCompiler
 
         public override ProgramData VisitDeclaration_and_assignment_no_semicolon([NotNull] MiniLanguageParser.Declaration_and_assignment_no_semicolonContext context)
         {
-            // 1. Preia tipul variabilei
+            // 1. Get variable type
             var variableType = ParseType(context.type());
 
-            // 2. Preia numele variabilei
+            // 2. Get variable name
             var variableName = context.VARIABLE_NAME().GetText();
 
             if (_result.IsVariable(variableName))
@@ -437,11 +316,11 @@ namespace MinimalCompiler
                 Value = null
             });
 
-            // 3. Preia valoarea atribuită variabilei
+            // 3. Get value assigned to variable
             var valueContext = context.value();
             var value = ParseValue(valueContext);
 
-            // 4. Adaugă variabila și valoarea în rezultatul final
+            // 4. Add variable and value to final result
             if (_result.Variables.Last().Value == null)
             {
                 _result.Variables.Last().Value = value;
@@ -499,9 +378,9 @@ namespace MinimalCompiler
 
         public override ProgramData VisitPost_inccrement_or_decrement_no_semicolon([NotNull] MiniLanguageParser.Post_inccrement_or_decrement_no_semicolonContext context)
         {
-            var variableName = context.VARIABLE_NAME().GetText(); // Extrage numele variabilei
+            var variableName = context.VARIABLE_NAME().GetText(); // Get variable name
 
-            if(!_result.IsVariable(variableName))
+            if (!_result.IsVariable(variableName))
             {
                 throw new Exception("Variable not found.");
             }
@@ -528,9 +407,9 @@ namespace MinimalCompiler
 
         public override ProgramData VisitPrev_inccrement_or_decrement_no_semicolon([NotNull] MiniLanguageParser.Prev_inccrement_or_decrement_no_semicolonContext context)
         {
-            var variableName = context.VARIABLE_NAME().GetText(); // Extrage numele variabilei
+            var variableName = context.VARIABLE_NAME().GetText(); // Get variable name
 
-            if(!_result.IsVariable(variableName))
+            if (!_result.IsVariable(variableName))
             {
                 throw new Exception("Variable not found.");
             }
@@ -1025,37 +904,37 @@ namespace MinimalCompiler
 
         public override ProgramData VisitArguments([NotNull] MiniLanguageParser.ArgumentsContext context)
         {
-            // Curăță argumentele anterioare din lista de argumente
+            // Clear the list of arguments
             if (_result.FunctionCallArgumentsExpressions.Count != 0)
             {
                 _result.FunctionCallArgumentsExpressions.Clear();
             }
 
-            // Verifică dacă există variabile
+            // Check if there are arguments
             if (context.VARIABLE_NAME().Length > 0)
             {
                 foreach (var variableName in context.VARIABLE_NAME())
                 {
-                    // Verifică dacă variabila există
+                    // Check if the variable exists
                     if (!_result.IsVariable(variableName.GetText()))
                     {
                         throw new Exception($"Variable '{variableName.GetText()}' not found.");
                     }
 
-                    // Adaugă valoarea variabilei în lista de argumente
+                    // Add the variable to the list of arguments
                     _result.FunctionCallArgumentsExpressions.Add(_result.GetVariable(variableName.GetText()));
                 }
             }
             else
             {
-                // Dacă nu sunt argumente de tip variabilă
+                // If there are no arguments types , return
                 throw new Exception("Unknown argument type.");
             }
 
-            // Verifică dacă parametrii funcției se potrivesc cu argumentele apelului
+            // Check to see if the function parameters match the arguments
             if (_result.CheckFunctionParameters())
             {
-                return _result; // Parametrii se potrivesc, întoarce rezultatul
+                return _result; // if they match, return the result
             }
             else
             {
@@ -1205,12 +1084,12 @@ namespace MinimalCompiler
 
         public override ProgramData VisitAssignment_no_semicolon([NotNull] MiniLanguageParser.Assignment_no_semicolonContext context)
         {
-            var variableName = context.VARIABLE_NAME().GetText(); // Extrage numele variabilei
+            var variableName = context.VARIABLE_NAME().GetText(); // Get variable name
             if (variableName == null)
             {
                 throw new Exception("Variable not found.");
             }
-            var value = Visit(context.value()); // Apelează vizitatorul pentru valoare
+            var value = Visit(context.value()); // Call the visitor for the value
 
             _result.GetVariable(variableName).Value = value.ExpresionValue;
 
@@ -1219,19 +1098,18 @@ namespace MinimalCompiler
 
         public override ProgramData VisitAssignment([NotNull] MiniLanguageParser.AssignmentContext context)
         {
-            var variableName = context.VARIABLE_NAME().GetText(); // Extrage numele variabilei
+            var variableName = context.VARIABLE_NAME().GetText(); // get variable name
             if (variableName == null)
             {
                 throw new Exception("Variable not found.");
             }
-            var value = Visit(context.value()); // Apelează vizitatorul pentru valoare
+            var value = Visit(context.value()); // Call the visitor for the value
 
             _result.GetVariable(variableName).Value = value.ExpresionValue;
 
             return _result;
         }
     }
-
     class Program
     {
         private static MiniLanguageLexer SetupLexer(string text)
@@ -1277,7 +1155,7 @@ namespace MinimalCompiler
             MiniLanguageParser parser = SetupParser(lexer);
 
             // Parse input and use the visitor
-            var tree = parser.program(); // 'program' este regula de top din gramatica
+            var tree = parser.program(); // 'program' is the top rule of the grammer
             MiniLanguageVisitor visitor = new MiniLanguageVisitor();
             ProgramData programData = visitor.Visit(tree);
             if(programData == null)
